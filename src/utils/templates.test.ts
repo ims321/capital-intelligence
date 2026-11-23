@@ -59,20 +59,31 @@ test('matchesOverlookedSegment filters non-traditional capital pockets accuratel
   assert.ok(localCcy.some((c) => c.name.includes('InfraCredit')));
 });
 
-test('filterOfficialPipelines and buildProjectFromOfficial cover AU Agenda 2063, DFI & National pipelines', () => {
+test('OFFICIAL_PIPELINE_PROJECTS are pre-sourced natively into INITIAL_PROJECTS in platform Project format', () => {
   const auOnly = filterOfficialPipelines(OFFICIAL_PIPELINE_PROJECTS, {
     sourceCategory: 'AU Agenda 2063 / PIDA',
   });
-  assert.ok(auOnly.length >= 4);
+  assert.ok(auOnly.length >= 8);
+
+  const dfiOnly = filterOfficialPipelines(OFFICIAL_PIPELINE_PROJECTS, {
+    sourceCategory: 'Multilateral / DFI',
+  });
+  assert.ok(dfiOnly.length >= 7);
 
   const nationalOnly = filterOfficialPipelines(OFFICIAL_PIPELINE_PROJECTS, {
     sourceCategory: 'National Official Agency',
   });
-  assert.ok(nationalOnly.length >= 5);
+  assert.ok(nationalOnly.length >= 10);
+
+  assert.ok(Object.keys(INITIAL_PROJECTS).length >= 28);
+  const lobito = INITIAL_PROJECTS['au-pida-1'];
+  assert.ok(lobito);
+  assert.equal(lobito.sourceCategory, 'AU Agenda 2063 / PIDA');
+  assert.equal(lobito.stages.length, 6);
+  assert.ok(lobito.gaps.length >= 2);
+  assert.equal('officialUrl' in auOnly[0], false);
 
   const imported = buildProjectFromOfficial(auOnly[0], 'p-imported');
   assert.equal(imported.id, 'p-imported');
   assert.equal(imported.name, auOnly[0].name);
-  assert.ok(imported.stages.length === 6);
-  assert.ok(imported.gaps.length >= 2);
 });

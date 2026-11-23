@@ -15,6 +15,7 @@ import type {
   Engagement,
 } from '../types/capital';
 import { EXPANDED_NONTRADITIONAL_PROVIDERS } from './expandedProviders';
+import { SOURCED_OFFICIAL_PROJECT_MAP } from './continentalProjects';
 
 export const STAGE_ORDER: StageKey[] = [
   'concept',
@@ -343,6 +344,7 @@ export const INITIAL_PROJECTS: Record<string, Project> = {
       { gap: 'Farebox subsidy mechanism undefined', severity: 'high', stage: 'Feasibility', remedy: 'Confirm PTNG / national grant allocation', status: 'Open' },
     ],
   },
+  ...SOURCED_OFFICIAL_PROJECT_MAP,
 };
 
 export const INITIAL_ENGAGEMENTS: Record<string, Engagement> = {

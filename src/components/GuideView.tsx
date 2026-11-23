@@ -35,7 +35,7 @@ export function GuideView() {
       title: 'Capital intelligence, official pipelines & interactive map',
       items: [
         'Capital explorer — Search 160+ providers across DFIs, ECAs, Arab/Gulf funds, sub-sovereign PPFs, local-currency guarantors (TCX, InfraCredit, InfraZamin), climate/carbon blending facilities, and African pension consortia, plus live grounded funding-call discovery.',
-        'AU & DFI pipelines — Browse AU Agenda 2063 / AUDA-NEPAD PIDA, multilateral DFI, and national official agency projects (SA ISA, Kenya PPPD, Nigeria ICRC, etc.), run live official portal searches, and clone any project straight into your Workspace.',
+        'AU & DFI pipelines — Browse 26+ infrastructure projects sourced directly from AU Agenda 2063 / AUDA-NEPAD PIDA PAP-2, AfDB, World Bank, DBSA, EIB, and national PPP agencies — stored in our native Project format with lifecycle stages, readiness score, and bankability gaps ready to open directly in Workspace or Matches.',
         'Flows & Flows map — Customizable interactive world map (Natural Earth, Mercator, or 3D Globe) with live corridor signals, project POI pins, instrument layer filters, and Gemini AI optimal routing.',
       ],
     },

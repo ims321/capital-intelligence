@@ -8,14 +8,12 @@ import {
   INITIAL_PROJECTS,
   JURISDICTION_OPTIONS,
 } from './data/capitalData';
-import { buildProjectFromOfficial } from './data/continentalProjects';
 import type {
   CapitalProvider,
   Engagement,
   EngagementStatus,
   ExecutedDocRecord,
   GapStatus,
-  OfficialPipelineProject,
   Project,
   ProviderMandate,
   Role,
@@ -348,28 +346,6 @@ export default function App() {
     }
   };
 
-  const handleImportOfficialProject = (official: OfficialPipelineProject) => {
-    const existing = Object.values(projects).find(
-      (p) => p.name === official.name
-    );
-    if (existing) {
-      setRole('borrower');
-      setActiveProjectId(existing.id);
-      setActiveTab('workspace');
-      showToast(`Opened existing workspace for "${official.name}".`);
-      return;
-    }
-
-    const newId = `p${Object.keys(projects).length + 1}`;
-    const built = buildProjectFromOfficial(official, newId);
-    setProjects((prev) => ({ ...prev, [newId]: built }));
-    setRole('borrower');
-    setJurisdiction(official.jurisdictionKey);
-    setActiveProjectId(newId);
-    setActiveTab('workspace');
-    showToast(`Imported "${official.name}" into Borrower Workspace.`);
-  };
-
   const handlePostDealMessage = (key: string, text: string) => {
     setEngagements((prev) => {
       const existing = prev[key];
@@ -451,11 +427,23 @@ export default function App() {
 
         {activeTab === 'pipelines' && (
           <ContinentalPipelineView
-            onImportOfficialProject={handleImportOfficialProject}
+            projects={projects}
+            activeProjectId={activeProjectId}
+            onOpenWorkspace={(id) => {
+              setRole('borrower');
+              setActiveProjectId(id);
+              handleSelectTab('workspace');
+            }}
+            onViewMatches={(id) => {
+              setRole('borrower');
+              setActiveProjectId(id);
+              handleSelectTab('matches');
+            }}
             onExploreOverlookedProvider={(providerKeyword) => {
               setExplorerGeoSearch(providerKeyword);
               handleSelectTab('capital');
             }}
+            onOpenNewProject={() => setNewProjectOpen(true)}
           />
         )}
 

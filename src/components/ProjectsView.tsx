@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import { STAGE_LABEL } from '../data/capitalData';
 import type { Project, TabId } from '../types/capital';
 import { fmtM } from '../utils/finance';
@@ -13,6 +13,13 @@ interface ProjectsViewProps {
   onNavigate?: (tab: TabId) => void;
 }
 
+type OriginFilter =
+  | 'all'
+  | 'local'
+  | 'AU Agenda 2063 / PIDA'
+  | 'Multilateral / DFI'
+  | 'National Official Agency';
+
 export function ProjectsView({
   projects,
   activeProjectId,
@@ -21,13 +28,41 @@ export function ProjectsView({
   onOpenNewProject,
   onNavigate,
 }: ProjectsViewProps) {
-  const list = Object.values(projects);
+  const [originFilter, setOriginFilter] = useState<OriginFilter>('all');
+  const [search, setSearch] = useState('');
+
+  const allProjects = useMemo(() => Object.values(projects), [projects]);
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return allProjects.filter((p) => {
+      const originMatch =
+        originFilter === 'all'
+          ? true
+          : originFilter === 'local'
+            ? !p.sourceCategory
+            : p.sourceCategory === originFilter;
+      const hay = `${p.name} ${p.jurisdiction} ${p.sector} ${p.authorityName || ''}`.toLowerCase();
+      return originMatch && (!q || hay.includes(q));
+    });
+  }, [allProjects, originFilter, search]);
+
+  const counts = useMemo(
+    () => ({
+      all: allProjects.length,
+      local: allProjects.filter((p) => !p.sourceCategory).length,
+      au: allProjects.filter((p) => p.sourceCategory === 'AU Agenda 2063 / PIDA').length,
+      dfi: allProjects.filter((p) => p.sourceCategory === 'Multilateral / DFI').length,
+      nat: allProjects.filter((p) => p.sourceCategory === 'National Official Agency').length,
+    }),
+    [allProjects]
+  );
 
   return (
-    <section aria-labelledby="projects-heading">
+    <section aria-labelledby="projects-heading" className="space-y-5">
       <SectionHeader
-        title="My projects"
-        hint="Register early-stage concepts or import official AU Agenda 2063, DFI & National pipelines"
+        title="Projects database"
+        hint="Register early-stage concepts or work directly on sourced AU Agenda 2063, DFI & National Agency projects"
         action={
           <div className="flex flex-wrap gap-2">
             {onNavigate && (
@@ -36,7 +71,7 @@ export function ProjectsView({
                 onClick={() => onNavigate('pipelines')}
                 className="rounded-lg border border-white/15 px-3.5 py-2 text-xs font-semibold text-slate-200 transition-colors hover:border-teal-400/40 hover:text-teal-200 whitespace-nowrap shrink-0"
               >
-                Import AU / DFI Project
+                Filter AU &amp; DFI View
               </button>
             )}
             <button
@@ -50,8 +85,46 @@ export function ProjectsView({
         }
       />
 
+      {/* Origin filter & quick search */}
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/10 bg-[#0b1424] p-3.5">
+        <div className="flex flex-wrap gap-1.5">
+          {[
+            { id: 'all' as const, label: `All projects (${counts.all})` },
+            { id: 'local' as const, label: `Municipal / Custom (${counts.local})` },
+            { id: 'AU Agenda 2063 / PIDA' as const, label: `AU Agenda 2063 / PIDA (${counts.au})` },
+            { id: 'Multilateral / DFI' as const, label: `Multilateral / DFI (${counts.dfi})` },
+            { id: 'National Official Agency' as const, label: `National Agencies (${counts.nat})` },
+          ].map((pill) => {
+            const active = originFilter === pill.id;
+            return (
+              <button
+                key={pill.id}
+                type="button"
+                onClick={() => setOriginFilter(pill.id)}
+                className={`rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition-colors ${
+                  active
+                    ? 'border-teal-400 bg-teal-400/15 text-teal-200'
+                    : 'border-white/10 bg-white/[0.03] text-slate-300 hover:bg-white/[0.06]'
+                }`}
+              >
+                {pill.label}
+              </button>
+            );
+          })}
+        </div>
+
+        <input
+          type="search"
+          aria-label="Filter projects"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search project, country, sector..."
+          className="w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs text-slate-100 placeholder:text-slate-500 focus:border-teal-400/50 focus:outline-none sm:w-64"
+        />
+      </div>
+
       <div className="grid gap-5 md:grid-cols-2">
-        {list.map((p) => {
+        {filtered.map((p) => {
           const isCurrent = p.id === activeProjectId;
           return (
             <article
@@ -68,6 +141,14 @@ export function ProjectsView({
                     <span>{p.jurisdiction}</span>
                     <span aria-hidden="true">·</span>
                     <span>{p.sector}</span>
+                    {p.sourceCategory && (
+                      <>
+                        <span aria-hidden="true">·</span>
+                        <span className="font-semibold text-amber-300">
+                          {p.sourceCategory}
+                        </span>
+                      </>
+                    )}
                     {isCurrent && (
                       <>
                         <span aria-hidden="true">·</span>
@@ -98,7 +179,7 @@ export function ProjectsView({
                     Capex
                   </dt>
                   <dd className="font-mono-num mt-1 text-sm font-semibold text-slate-100">
-                    {p.currency === 'ZAR' ? 'R' : ''}
+                    {p.currency === 'ZAR' ? 'R' : `${p.currency} `}
                     {fmtM(p.capex)}m
                   </dd>
                 </div>

@@ -89,6 +89,12 @@ export interface Project {
   desc: string;
   stages: ProjectStage[];
   gaps: ProjectGap[];
+  sourceCategory?: OfficialPipelineSource;
+  authorityName?: string;
+  rec?: 'SADC' | 'EAC' | 'ECOWAS' | 'COMESA' | 'ECCAS' | 'North Africa' | 'Continental';
+  agendaAlignment?: string;
+  financingGap?: string;
+  recommendedOverlookedCapital?: string[];
 }
 
 export interface DealRoomMessage {
@@ -135,7 +141,6 @@ export interface OfficialPipelineProject {
   name: string;
   sourceCategory: OfficialPipelineSource;
   authorityName: string;
-  officialUrl: string;
   country: string;
   jurisdictionKey: string;
   rec: 'SADC' | 'EAC' | 'ECOWAS' | 'COMESA' | 'ECCAS' | 'North Africa' | 'Continental';

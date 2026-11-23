@@ -89,14 +89,18 @@ export function WorkspaceView({
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="space-y-1.5">
             <div className="flex flex-wrap items-center gap-3 text-xs text-slate-400">
-              <span>Illustrative project workspace</span>
+              <span>
+                {project.sourceCategory
+                  ? `${project.sourceCategory} · ${project.authorityName}`
+                  : 'Illustrative project workspace'}
+              </span>
               <span aria-hidden="true">·</span>
               <span>{project.jurisdiction}</span>
               <span aria-hidden="true">·</span>
               <span>{project.sector}</span>
               <span aria-hidden="true">·</span>
               <span className="font-mono-num">
-                {project.currency === 'ZAR' ? 'R' : ''}
+                {project.currency === 'ZAR' ? 'R' : `${project.currency} `}
                 {fmtM(project.capex)}m
               </span>
             </div>

@@ -264,8 +264,15 @@ export function OpportunitiesView({
             <option value="all">All countries</option>
             <option>South Africa</option>
             <option>Kenya</option>
+            <option>Nigeria</option>
             <option>Zambia</option>
             <option>DRC</option>
+            <option>Ghana</option>
+            <option>Egypt</option>
+            <option>Morocco</option>
+            <option>Senegal</option>
+            <option>Cameroon</option>
+            <option>Uganda</option>
           </select>
         </div>
 
@@ -349,7 +356,7 @@ export function OpportunitiesView({
                     Capex
                   </dt>
                   <dd className="font-mono-num mt-0.5 text-xs font-semibold text-slate-100">
-                    {p.currency === 'ZAR' ? 'R' : ''}
+                    {p.currency === 'ZAR' ? 'R' : `${p.currency} `}
                     {fmtM(p.capex)}m
                   </dd>
                 </div>

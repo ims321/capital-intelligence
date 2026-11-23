@@ -295,7 +295,7 @@ export function LandingView({
                   textWrap: 'balance',
                 }}
               >
-                Connect African projects to global capital — with legal authority first.
+                Connect African projects to global capital.
               </h1>
               <p className="max-w-2xl text-base leading-relaxed text-slate-200">
                 Government borrowers bring capital projects and municipal priorities.
@@ -370,7 +370,7 @@ export function LandingView({
           <div className="mt-12 grid grid-cols-2 gap-4 border-t border-white/15 pt-8 sm:grid-cols-4">
             <div className="border-r border-white/10 pr-4 last:border-r-0">
               <div className="font-mono-num text-3xl font-semibold text-slate-50">
-                {projectCount + 9}
+                {projectCount}
               </div>
               <div className="mt-1 text-xs font-medium text-slate-300">
                 Active pipeline projects

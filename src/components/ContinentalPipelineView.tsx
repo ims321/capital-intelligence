@@ -1,43 +1,45 @@
 import React, { useMemo, useState } from 'react';
 import {
-  ArrowUpRight,
   Building2,
-  FolderPlus,
+  Database,
+  Download,
   Globe2,
   Landmark,
-  Search,
-  Sparkles,
+  Layers,
 } from 'lucide-react';
 import { STAGE_LABEL } from '../data/capitalData';
-import {
-  OFFICIAL_PIPELINE_PROJECTS,
-  OFFICIAL_PIPELINE_SOURCES,
-} from '../data/continentalProjects';
-import type { OfficialPipelineProject } from '../types/capital';
-import { filterOfficialPipelines } from '../utils/templates';
-import { SectionHeader } from './SharedUI';
+import { OFFICIAL_PIPELINE_SOURCES } from '../data/continentalProjects';
+import type { Project } from '../types/capital';
+import { fmtM } from '../utils/finance';
+import { ReadinessMeter, SectionHeader } from './SharedUI';
 
 interface ContinentalPipelineViewProps {
-  onImportOfficialProject: (official: OfficialPipelineProject) => void;
+  projects: Record<string, Project>;
+  activeProjectId: string;
+  onOpenWorkspace: (projectId: string) => void;
+  onViewMatches: (projectId: string) => void;
   onExploreOverlookedProvider: (providerKeyword: string) => void;
+  onOpenNewProject: () => void;
 }
 
-const RECS = ['all', 'SADC', 'EAC', 'ECOWAS', 'COMESA', 'North Africa', 'Continental'];
-
-const OFFICIAL_PORTALS = [
-  { name: 'AU Agenda 2063 Flagships', url: 'https://au.int/en/agenda2063/flagship-projects' },
-  { name: 'AUDA-NEPAD PIDA VP', url: 'https://www.au-pida.org/' },
-  { name: 'AfDB Projects & Operations', url: 'https://www.afdb.org/en/projects-and-operations' },
-  { name: 'World Bank Projects', url: 'https://projects.worldbank.org/en/projects-operations/projects-home' },
-  { name: 'Infrastructure South Africa', url: 'https://infrastructure.gov.za/' },
-  { name: 'Kenya PPP Directorate', url: 'https://www.pppunit.go.ke/' },
-  { name: 'Nigeria ICRC PPP Portal', url: 'https://www.icrc.gov.ng/projects/' },
-  { name: 'DBSA Project Hub', url: 'https://www.dbsa.org/projects' },
+const RECS = [
+  'all',
+  'SADC',
+  'EAC',
+  'ECOWAS',
+  'COMESA',
+  'ECCAS',
+  'North Africa',
+  'Continental',
 ];
 
 export function ContinentalPipelineView({
-  onImportOfficialProject,
+  projects,
+  activeProjectId,
+  onOpenWorkspace,
+  onViewMatches,
   onExploreOverlookedProvider,
+  onOpenNewProject,
 }: ContinentalPipelineViewProps) {
   const [search, setSearch] = useState('');
   const [sourceCategory, setSourceCategory] = useState('all');
@@ -45,202 +47,104 @@ export function ContinentalPipelineView({
   const [sector, setSector] = useState('all');
   const [stage, setStage] = useState('all');
 
-  // Live Google-Search grounded portal lookup
-  const [liveQuery, setLiveQuery] = useState('');
-  const [liveCountry, setLiveCountry] = useState('Africa');
-  const [liveLoading, setLiveLoading] = useState(false);
-  const [liveError, setLiveError] = useState<string | null>(null);
-  const [liveResult, setLiveResult] = useState<{
-    answer: string;
-    sources: Array<{ title: string; uri: string }>;
-  } | null>(null);
-
-  const filtered = useMemo(
-    () =>
-      filterOfficialPipelines(OFFICIAL_PIPELINE_PROJECTS, {
-        search,
-        sourceCategory,
-        rec,
-        sector,
-        stage,
-      }),
-    [search, sourceCategory, rec, sector, stage]
+  const sourcedProjects = useMemo(
+    () => Object.values(projects).filter((p) => Boolean(p.sourceCategory)),
+    [projects]
   );
 
-  const handleLiveSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!liveQuery.trim()) return;
-    setLiveLoading(true);
-    setLiveError(null);
-    try {
-      const res = await fetch('/api/official-search', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          query: liveQuery.trim(),
-          scope: 'projects',
-          country: liveCountry,
-          sector: sector === 'all' ? 'All infrastructure sectors' : sector,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setLiveError(data.error || 'Unable to query official portals.');
-        setLiveResult(null);
-      } else {
-        setLiveResult(data);
-      }
-    } catch {
-      setLiveError('Network error reaching official portal search service.');
-    } finally {
-      setLiveLoading(false);
-    }
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return sourcedProjects.filter((item) => {
+      const hay = `${item.name} ${item.jurisdiction} ${item.authorityName || ''} ${item.sector} ${item.desc} ${item.agendaAlignment || ''}`.toLowerCase();
+      return (
+        (!q || hay.includes(q)) &&
+        (sourceCategory === 'all' || item.sourceCategory === sourceCategory) &&
+        (rec === 'all' || item.rec === rec) &&
+        (sector === 'all' ||
+          item.sector.toLowerCase().includes(sector.toLowerCase())) &&
+        (stage === 'all' || item.stage === stage)
+      );
+    });
+  }, [sourcedProjects, search, sourceCategory, rec, sector, stage]);
+
+  const handleExportCSV = () => {
+    const headers = [
+      'id',
+      'name',
+      'sourceCategory',
+      'authorityName',
+      'jurisdiction',
+      'rec',
+      'sector',
+      'stage',
+      'capex_usd',
+      'readiness',
+      'updated',
+    ];
+    const escapeCell = (v: unknown) => {
+      const s = String(v ?? '');
+      return s.includes(',') || s.includes('"') || s.includes('\n')
+        ? `"${s.replaceAll('"', '""')}"`
+        : s;
+    };
+    const rows = [
+      headers.join(','),
+      ...filtered.map((p) =>
+        [
+          p.id,
+          p.name,
+          p.sourceCategory,
+          p.authorityName,
+          p.jurisdiction,
+          p.rec,
+          p.sector,
+          p.stage,
+          p.capex,
+          p.readiness,
+          p.updated,
+        ]
+          .map(escapeCell)
+          .join(',')
+      ),
+    ];
+    const blob = new Blob([rows.join('\n')], {
+      type: 'text/csv;charset=utf-8;',
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'au-dfi-national-projects-database.csv';
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   return (
     <section aria-labelledby="pipelines-heading" className="space-y-6">
       <SectionHeader
-        title="AU Agenda 2063, DFI & National Official Pipelines"
-        hint="Verified continental, multilateral, and national infrastructure pipelines — import directly into your Workspace"
+        title="AU Agenda 2063, DFI & National Project Database"
+        hint="Projects sourced from AUDA-NEPAD PIDA PAP-2, AfDB, World Bank, DBSA, EIB & national PPP agencies — stored natively in our Project format"
+        action={
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={handleExportCSV}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 px-3.5 py-2 text-xs font-semibold text-slate-200 transition-colors hover:bg-white/5 whitespace-nowrap shrink-0"
+            >
+              <Download className="h-3.5 w-3.5" aria-hidden="true" />
+              Export CSV
+            </button>
+            <button
+              type="button"
+              onClick={onOpenNewProject}
+              className="rounded-lg bg-teal-400 px-3.5 py-2 text-xs font-semibold text-slate-950 transition-colors hover:bg-teal-300 whitespace-nowrap shrink-0"
+            >
+              + Add project
+            </button>
+          </div>
+        }
       />
 
-      {/* Official Source Quick-Verify Strip */}
-      <div className="rounded-xl border border-white/10 bg-[#0b1424] p-4">
-        <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2">
-          <span className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-teal-300">
-            <Globe2 className="h-3.5 w-3.5" aria-hidden="true" />
-            Direct Official Institutional Portals
-          </span>
-          <span className="text-[11px] text-slate-400">
-            Opens primary AUDA-NEPAD, DFI &amp; National Ministry registries in a new tab
-          </span>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {OFFICIAL_PORTALS.map((portal) => (
-            <a
-              key={portal.name}
-              href={portal.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 rounded-lg border border-white/12 bg-white/[0.03] px-3 py-1.5 text-xs font-medium text-slate-200 transition-colors hover:border-teal-400/50 hover:text-teal-200"
-            >
-              <span>{portal.name}</span>
-              <ArrowUpRight className="h-3 w-3 text-slate-400" aria-hidden="true" />
-            </a>
-          ))}
-        </div>
-      </div>
-
-      {/* Live Official Portal Discovery (Grounded Search) */}
-      <div className="rounded-xl border border-teal-400/20 bg-gradient-to-br from-[#0b1829] to-[#08121f] p-5">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <h3 className="inline-flex items-center gap-1.5 text-sm font-semibold text-teal-300">
-              <Sparkles className="h-4 w-4" aria-hidden="true" />
-              Live Official Portal &amp; Agenda 2063 Tender Search
-            </h3>
-            <p className="mt-0.5 text-xs text-slate-400">
-              Query live AUDA-NEPAD PIDA, AfDB, World Bank, and National PPP websites via grounded search.
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-1.5">
-            {[
-              'AUDA-NEPAD PIDA water transport 2026',
-              'Kenya PPP Directorate open road water tenders',
-              'South Africa Infrastructure SA gazetted SIPs',
-            ].map((preset) => (
-              <button
-                key={preset}
-                type="button"
-                onClick={() => setLiveQuery(preset)}
-                className="rounded-md border border-white/10 bg-white/[0.03] px-2.5 py-1 text-[11px] text-slate-300 hover:border-teal-400/40 hover:text-teal-200"
-              >
-                {preset}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <form onSubmit={handleLiveSearch} className="mt-3 flex flex-wrap gap-2">
-          <div className="relative min-w-[240px] flex-1">
-            <Search
-              className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500"
-              aria-hidden="true"
-            />
-            <input
-              type="text"
-              value={liveQuery}
-              onChange={(e) => setLiveQuery(e.target.value)}
-              placeholder="Search live official portals (e.g. PIDA SADC rail, AfDB green hydro call, Nigeria ICRC)..."
-              className="w-full rounded-lg border border-white/12 bg-white/[0.04] py-2 pl-9 pr-3 text-sm text-slate-100 placeholder:text-slate-500 focus:border-teal-400/50 focus:outline-none"
-            />
-          </div>
-          <select
-            aria-label="Live search geography"
-            value={liveCountry}
-            onChange={(e) => setLiveCountry(e.target.value)}
-            className="rounded-lg border border-white/12 bg-[#08111e] px-3 py-2 text-sm text-slate-100 focus:border-teal-400/50 focus:outline-none"
-          >
-            <option value="Africa">Pan-African</option>
-            <option value="South Africa">South Africa</option>
-            <option value="Kenya">Kenya</option>
-            <option value="Nigeria">Nigeria</option>
-            <option value="Zambia">Zambia</option>
-            <option value="DRC">DRC</option>
-            <option value="Ghana">Ghana</option>
-            <option value="Senegal">Senegal</option>
-            <option value="Morocco">Morocco</option>
-            <option value="Egypt">Egypt</option>
-          </select>
-          <button
-            type="submit"
-            disabled={liveLoading || !liveQuery.trim()}
-            className="rounded-lg bg-teal-400 px-4 py-2 text-xs font-semibold text-slate-950 transition-colors hover:bg-teal-300 disabled:opacity-50 whitespace-nowrap shrink-0"
-          >
-            {liveLoading ? 'Searching portals…' : 'Search Official Sites'}
-          </button>
-        </form>
-
-        {liveError && (
-          <div
-            role="alert"
-            className="mt-3 rounded-lg border border-amber-400/30 bg-amber-400/10 px-3.5 py-2.5 text-xs text-amber-200"
-          >
-            {liveError}
-          </div>
-        )}
-
-        {liveResult && (
-          <div className="mt-4 rounded-lg border border-white/10 bg-[#070f1b] p-4">
-            <div className="whitespace-pre-line text-sm leading-relaxed text-slate-200">
-              {liveResult.answer}
-            </div>
-            {liveResult.sources.length > 0 && (
-              <div className="mt-3 border-t border-white/10 pt-3">
-                <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-                  Grounded Official Sources
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {liveResult.sources.map((src) => (
-                    <a
-                      key={src.uri}
-                      href={src.uri}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 rounded border border-teal-400/30 bg-teal-400/10 px-2.5 py-1 text-xs font-medium text-teal-200 hover:bg-teal-400/20"
-                    >
-                      <span className="max-w-[260px] truncate">{src.title}</span>
-                      <ArrowUpRight className="h-3 w-3 shrink-0" aria-hidden="true" />
-                    </a>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Authority Summary Tiles */}
+      {/* Database Origin Summary Tiles */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <button
           type="button"
@@ -252,15 +156,16 @@ export function ContinentalPipelineView({
           }`}
         >
           <div className="font-mono-num text-2xl font-bold text-slate-100">
-            {OFFICIAL_PIPELINE_PROJECTS.length}
+            {sourcedProjects.length}
           </div>
-          <div className="mt-1 text-xs font-semibold text-slate-300">
-            All official pipeline records
+          <div className="mt-1 flex items-center gap-1.5 text-xs font-semibold text-slate-300">
+            <Database className="h-3.5 w-3.5 text-teal-300" aria-hidden="true" />
+            <span>All sourced database records</span>
           </div>
         </button>
 
         {OFFICIAL_PIPELINE_SOURCES.map((src) => {
-          const count = OFFICIAL_PIPELINE_PROJECTS.filter(
+          const count = sourcedProjects.filter(
             (p) => p.sourceCategory === src
           ).length;
           const active = sourceCategory === src;
@@ -300,14 +205,14 @@ export function ContinentalPipelineView({
             htmlFor="pipe-search"
             className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-slate-400"
           >
-            Search projects or countries
+            Search projects, countries or agencies
           </label>
           <input
             id="pipe-search"
             type="search"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Lobito, Inga, Kenya, desalination..."
+            placeholder="Lobito, Mambilla, Inga, uMkhomazi, Kenya..."
             className="w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:border-teal-400/50 focus:outline-none"
           />
         </div>
@@ -351,7 +256,6 @@ export function ContinentalPipelineView({
             <option value="Renewable energy">Renewable energy</option>
             <option value="Transport">Transport / logistics</option>
             <option value="Climate">Climate adaptation</option>
-            <option value="Municipal">Digital / Municipal</option>
           </select>
         </div>
 
@@ -376,96 +280,187 @@ export function ContinentalPipelineView({
         </div>
       </div>
 
-      <div className="font-mono-num text-xs text-slate-400">
-        {filtered.length} official listings matched across AUDA-NEPAD, DFI &amp; National agencies
+      <div className="flex flex-wrap items-center justify-between gap-2 font-mono-num text-xs text-slate-400">
+        <span>
+          {filtered.length} of {sourcedProjects.length} sourced database records · full
+          lifecycle stages, gaps &amp; scoring populated
+        </span>
+        <span className="inline-flex items-center gap-1.5 text-teal-300">
+          <Layers className="h-3.5 w-3.5" aria-hidden="true" />
+          Native Project Format · 0 external redirects
+        </span>
       </div>
 
-      {/* Pipeline Cards */}
-      <div className="grid gap-5 md:grid-cols-2">
-        {filtered.map((item) => (
-          <article
-            key={item.id}
-            className="flex flex-col justify-between rounded-xl border border-white/10 bg-[#0b1424] p-6"
+      {/* Native Project Cards */}
+      {filtered.length > 0 ? (
+        <div className="grid gap-5 md:grid-cols-2">
+          {filtered.map((p) => {
+            const isCurrent = p.id === activeProjectId;
+            const openGapCount = p.gaps.filter((g) => g.status !== 'Closed').length;
+            return (
+              <article
+                key={p.id}
+                className={`flex flex-col justify-between rounded-xl border p-6 transition-colors ${
+                  isCurrent
+                    ? 'border-teal-400/40 bg-[#0d192b]'
+                    : 'border-white/10 bg-[#0b1424] hover:border-white/20'
+                }`}
+              >
+                <div>
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2 text-xs">
+                        <span
+                          className={`font-semibold ${
+                            p.sourceCategory === 'AU Agenda 2063 / PIDA'
+                              ? 'text-amber-300'
+                              : p.sourceCategory === 'Multilateral / DFI'
+                                ? 'text-teal-300'
+                                : 'text-sky-300'
+                          }`}
+                        >
+                          {p.sourceCategory} · {p.rec}
+                        </span>
+                        {isCurrent && (
+                          <span className="rounded bg-teal-400/15 px-1.5 py-0.5 text-[10px] font-semibold text-teal-300">
+                            Active workspace
+                          </span>
+                        )}
+                      </div>
+                      <h3 className="mt-1.5 text-lg font-semibold leading-snug text-slate-100">
+                        {p.name}
+                      </h3>
+                      <p className="mt-1 text-xs text-slate-400">
+                        {p.jurisdiction} · {p.sector}
+                      </p>
+                      {p.authorityName && (
+                        <p className="mt-0.5 text-[11px] text-slate-500">
+                          Registry: {p.authorityName}
+                        </p>
+                      )}
+                    </div>
+                    <ReadinessMeter score={p.readiness} />
+                  </div>
+
+                  <p className="mt-3 text-sm leading-relaxed text-slate-300">
+                    {p.desc}
+                  </p>
+
+                  {/* Native Project Metrics Strip */}
+                  <dl className="mt-4 grid grid-cols-4 gap-3 border-y border-white/8 py-3">
+                    <div>
+                      <dt className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                        Stage
+                      </dt>
+                      <dd className="mt-1 text-xs font-semibold text-slate-100">
+                        {STAGE_LABEL[p.stage]}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                        Capex
+                      </dt>
+                      <dd className="font-mono-num mt-1 text-xs font-semibold text-slate-100">
+                        {p.currency} {fmtM(p.capex)}m
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                        Gaps
+                      </dt>
+                      <dd className="font-mono-num mt-1 text-xs font-semibold text-amber-300">
+                        {openGapCount} tracked
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                        Reviewed
+                      </dt>
+                      <dd className="font-mono-num mt-1 text-xs font-semibold text-slate-300">
+                        {p.updated}
+                      </dd>
+                    </div>
+                  </dl>
+
+                  {p.financingGap && (
+                    <div className="mt-3.5 rounded-lg border border-white/8 bg-[#08111e] p-3 text-xs">
+                      <div className="font-semibold uppercase tracking-wider text-slate-400">
+                        Primary Bankability Gap &amp; Alignment
+                      </div>
+                      <p className="mt-1 text-slate-200">{p.financingGap}</p>
+                      {p.agendaAlignment && (
+                        <p className="mt-1 text-[11px] text-slate-400">
+                          {p.agendaAlignment}
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {p.recommendedOverlookedCapital &&
+                    p.recommendedOverlookedCapital.length > 0 && (
+                      <div className="mt-3">
+                        <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                          Matched Overlooked Capital Windows (inspect in Explorer)
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {p.recommendedOverlookedCapital.map((cap) => (
+                            <button
+                              key={cap}
+                              type="button"
+                              onClick={() => onExploreOverlookedProvider(cap)}
+                              className="rounded border border-violet-400/25 bg-violet-400/10 px-2 py-0.5 text-[11px] font-medium text-violet-200 hover:border-violet-400/60 hover:bg-violet-400/20"
+                            >
+                              {cap}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                </div>
+
+                <div className="mt-5 flex flex-wrap gap-3 border-t border-white/8 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => onOpenWorkspace(p.id)}
+                    className="rounded-lg bg-teal-400 px-3.5 py-2 text-xs font-semibold text-slate-950 transition-colors hover:bg-teal-300 whitespace-nowrap shrink-0"
+                  >
+                    Open workspace
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onViewMatches(p.id)}
+                    className="rounded-lg border border-white/15 px-3.5 py-2 text-xs font-semibold text-slate-200 transition-colors hover:bg-white/5 whitespace-nowrap shrink-0"
+                  >
+                    View matches
+                  </button>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="rounded-xl border border-white/10 bg-[#0b1424] p-12 text-center">
+          <h3 className="text-base font-semibold text-slate-100">
+            No sourced projects match these filters
+          </h3>
+          <p className="mt-1 text-sm text-slate-400">
+            Clear your search or select All African regions / sectors.
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              setSearch('');
+              setSourceCategory('all');
+              setRec('all');
+              setSector('all');
+              setStage('all');
+            }}
+            className="mt-4 rounded-lg border border-white/15 px-4 py-2 text-xs font-semibold text-slate-200 hover:bg-white/5"
           >
-            <div>
-              <div className="flex flex-wrap items-start justify-between gap-2">
-                <span
-                  className={`text-xs font-semibold ${
-                    item.sourceCategory === 'AU Agenda 2063 / PIDA'
-                      ? 'text-amber-300'
-                      : item.sourceCategory === 'Multilateral / DFI'
-                        ? 'text-teal-300'
-                        : 'text-sky-300'
-                  }`}
-                >
-                  {item.sourceCategory} · {item.rec}
-                </span>
-                <span className="font-mono-num text-xs font-semibold text-slate-300">
-                  {STAGE_LABEL[item.stage]} · ~USD {item.capexUsdM.toLocaleString()}m
-                </span>
-              </div>
-
-              <h3 className="mt-1.5 text-lg font-semibold leading-snug text-slate-100">
-                {item.name}
-              </h3>
-              <p className="mt-1 text-xs text-slate-400">
-                {item.authorityName} · <strong className="text-slate-200">{item.country}</strong>
-              </p>
-
-              <p className="mt-3 text-sm leading-relaxed text-slate-300">
-                {item.summary}
-              </p>
-
-              <div className="mt-4 rounded-lg border border-white/8 bg-[#08111e] p-3 text-xs">
-                <div className="font-semibold uppercase tracking-wider text-slate-400">
-                  Financing Gap &amp; Mandate Alignment
-                </div>
-                <p className="mt-1 text-slate-200">{item.financingGap}</p>
-                <p className="mt-1 text-[11px] text-slate-400">{item.agendaAlignment}</p>
-              </div>
-
-              <div className="mt-3">
-                <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-                  Overlooked &amp; Blended Windows (click to inspect in Capital Explorer)
-                </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {item.recommendedOverlookedCapital.map((cap) => (
-                    <button
-                      key={cap}
-                      type="button"
-                      onClick={() => onExploreOverlookedProvider(cap)}
-                      className="rounded border border-violet-400/25 bg-violet-400/10 px-2 py-0.5 text-[11px] font-medium text-violet-200 hover:border-violet-400/60 hover:bg-violet-400/20"
-                    >
-                      {cap}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-white/8 pt-4">
-              <a
-                href={item.officialUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-xs font-semibold text-teal-300 hover:text-teal-200"
-              >
-                <span>View official listing</span>
-                <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
-              </a>
-
-              <button
-                type="button"
-                onClick={() => onImportOfficialProject(item)}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-teal-400 px-3.5 py-2 text-xs font-semibold text-slate-950 transition-colors hover:bg-teal-300 whitespace-nowrap shrink-0"
-              >
-                <FolderPlus className="h-3.5 w-3.5" aria-hidden="true" />
-                Clone into Workspace
-              </button>
-            </div>
-          </article>
-        ))}
-      </div>
+            Reset filters
+          </button>
+        </div>
+      )}
     </section>
   );
 }

@@ -253,6 +253,109 @@ async function startServer() {
     }
   });
 
+  // Multi-turn Gemini Capital Guide Chatbot (Role-based system instructions + Search Grounding)
+  app.post('/api/capital-chat', async (req, res) => {
+    const ai = createGeminiClient();
+    if (!ai) {
+      res.status(503).json({
+        error:
+          'GEMINI_API_KEY is not configured. Please add your API key in Settings > Secrets to use the Capital Guide.',
+      });
+      return;
+    }
+
+    const {
+      message = '',
+      history = [],
+      persona = 'borrower',
+      mode = 'standard',
+      useSearch = true,
+      context = {},
+    } = req.body || {};
+
+    const cleanMessage = String(message).trim();
+    if (!cleanMessage) {
+      res.status(400).json({ error: 'Please enter a message.' });
+      return;
+    }
+
+    const model =
+      mode === 'fast' ? 'gemini-3.1-flash-lite' : 'gemini-4-hydrogen';
+
+    const personaInstructions: Record<string, string> = {
+      borrower:
+        'You are the Capital Intelligence Borrower PMO Advisor. Help African municipalities, utilities, and sovereign agencies prepare bankable infrastructure projects, close feasibility gaps, evaluate blended vs commercial debt scenarios, verify statutory borrowing rules, and match with stage-appropriate grants, DFIs, ECAs, and local-currency credit enhancers.',
+      provider:
+        'You are the Capital Intelligence Provider Mandate Analyst. Help DFIs, pension funds, sovereign wealth funds, and commercial lenders screen African infrastructure deals, evaluate readiness scores, assess legal borrowing capacity, and structure NDA-gated data room and term-sheet engagements.',
+      legal:
+        'You are the Capital Intelligence Legal & Fiscal Authority Specialist. Explain statutory municipal and national borrowing frameworks (such as South African MFMA ss 46–50, Kenyan PFMA, Nigerian ICRC/Fiscal Responsibility rules, FX approvals, and National Treasury concurrence). Always state clearly that guidance is decision support only and not a formal legal opinion.',
+    };
+
+    const selectedPersona =
+      personaInstructions[String(persona)] || personaInstructions.borrower;
+
+    const systemInstruction = [
+      selectedPersona,
+      `Current user context: active tab="${context.activeTab || 'overview'}", role="${context.role || 'borrower'}", jurisdiction="${context.jurisdiction || 'za-muni'}", focused map country="${context.focusedCountry || 'none'}".`,
+      context.projectName
+        ? `Active project in workspace: "${context.projectName}" | Stage: ${context.projectStage || 'unknown'} | Readiness: ${context.projectReadiness ?? 'n/a'}/100 | Open gaps: ${context.openGaps ?? 'n/a'} | Capex: ${context.projectCapex || 'n/a'}.`
+        : '',
+      'Guidelines: Be concise, structured, and institutional. Never invent committed capital or non-existent facilities. When Google Search returns live web results, ground your answer in those verified facts.',
+    ]
+      .filter(Boolean)
+      .join('\n');
+
+    const formattedHistory = Array.isArray(history)
+      ? history
+          .filter(
+            (h): h is { role: 'user' | 'model'; text: string } =>
+              Boolean(h) &&
+              (h.role === 'user' || h.role === 'model') &&
+              typeof h.text === 'string' &&
+              h.text.trim().length > 0
+          )
+          .slice(-16)
+          .map((h) => ({
+            role: h.role,
+            parts: [{ text: h.text }],
+          }))
+      : [];
+
+    try {
+      const enableSearchTool = Boolean(useSearch) && model === 'gemini-4-hydrogen';
+      const chat = ai.chats.create({
+        model,
+        history: formattedHistory,
+        config: {
+          systemInstruction,
+          ...(enableSearchTool ? { tools: [{ googleSearch: {} }] } : {}),
+        },
+      });
+
+      const response = await chat.sendMessage({ message: cleanMessage });
+      const rawChunks =
+        response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
+      const sources = rawChunks
+        .map((c) => c.web)
+        .filter((w): w is { uri: string; title?: string } => Boolean(w?.uri))
+        .slice(0, 6)
+        .map((w) => ({
+          title: w.title || w.uri,
+          uri: w.uri,
+        }));
+
+      res.json({
+        reply: (response.text ?? '').trim(),
+        sources,
+        modelUsed: model,
+      });
+    } catch (err) {
+      const errMsg =
+        err instanceof Error ? err.message : 'Failed to generate chat response.';
+      res.status(502).json({ error: errMsg });
+    }
+  });
+
   const httpServer = http.createServer(app);
 
   if (!isProd) {
