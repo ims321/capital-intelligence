@@ -1,0 +1,1993 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Capital Intelligence — Infrastructure funding platform</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+<script src="https://cdn.jsdelivr.net/npm/topojson-client@3"></script>
+<style>
+:root {
+  --bg: #070f1a;
+  --bg2: #0c1829;
+  --surface: rgba(16, 30, 48, 0.72);
+  --surface-solid: #101e30;
+  --border: rgba(255,255,255,0.08);
+  --border-hover: rgba(255,255,255,0.16);
+  --text: #e8eef6;
+  --text-dim: #8b9cb3;
+  --text-muted: #5c6f86;
+  --teal: #2dd4bf;
+  --teal-dim: rgba(45,212,191,0.15);
+  --gold: #e8c36a;
+  --gold-dim: rgba(232,195,106,0.12);
+  --blue: #60a5fa;
+  --purple: #a78bfa;
+  --rose: #fb7185;
+  --radius: 16px;
+  --radius-sm: 10px;
+  --shadow: 0 4px 24px rgba(0,0,0,0.35);
+  --font: 'Inter', system-ui, sans-serif;
+  --serif: 'Instrument Serif', Georgia, serif;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.55;
+  font-size: 14.5px;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+/* Ambient background */
+body::before {
+  content: '';
+  position: fixed; inset: 0; z-index: -1;
+  background:
+    radial-gradient(ellipse 80% 50% at 20% -10%, rgba(45,212,191,0.08), transparent),
+    radial-gradient(ellipse 60% 40% at 80% 110%, rgba(232,195,106,0.05), transparent),
+    var(--bg);
+}
+h1,h2,h3,h4 { line-height: 1.25; font-weight: 600; }
+a { color: var(--teal); text-decoration: none; }
+button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+input, select, textarea {
+  font-family: inherit; font-size: 13.5px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  padding: 10px 12px;
+  width: 100%;
+  transition: border-color .2s;
+}
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: rgba(45,212,191,0.4);
+  box-shadow: 0 0 0 3px rgba(45,212,191,0.1);
+}
+::placeholder { color: var(--text-muted); }
+
+/* ===== TOP BAR ===== */
+.proto-bar {
+  background: linear-gradient(90deg, #1a1408, #2a2010);
+  color: var(--gold);
+  font-size: 11px; font-weight: 600;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  text-align: center; padding: 7px 16px;
+  border-bottom: 1px solid rgba(232,195,106,0.15);
+}
+
+/* ===== HEADER ===== */
+.site-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 28px; gap: 20px; flex-wrap: wrap;
+  border-bottom: 1px solid var(--border);
+  background: rgba(7,15,26,0.85);
+  backdrop-filter: blur(16px);
+  position: sticky; top: 0; z-index: 50;
+}
+.brand { display: flex; align-items: center; gap: 14px; }
+.logo {
+  width: 42px; height: 42px; border-radius: 12px;
+  background: linear-gradient(135deg, rgba(45,212,191,0.2), rgba(232,195,106,0.15));
+  border: 1px solid rgba(45,212,191,0.3);
+  display: grid; place-items: center;
+  font-weight: 800; font-size: 13px; color: var(--teal);
+  letter-spacing: 0.04em;
+}
+.brand-text h1 { font-size: 15px; font-weight: 700; letter-spacing: -0.01em; }
+.brand-text p { font-size: 11.5px; color: var(--text-dim); margin-top: 1px; }
+.header-right { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.role-switch {
+  display: flex; background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border); border-radius: 10px; padding: 3px;
+}
+.role-btn {
+  padding: 7px 14px; font-size: 12.5px; font-weight: 600;
+  border-radius: 8px; color: var(--text-dim); transition: all .2s;
+}
+.role-btn.active { background: var(--teal-dim); color: var(--teal); }
+.role-btn:hover:not(.active) { color: var(--text); }
+.jurisdiction select {
+  min-width: 240px; background: rgba(255,255,255,0.04);
+  border-color: var(--border); color: var(--text); font-size: 12.5px;
+}
+
+/* ===== TABS ===== */
+nav.tabs {
+  display: flex; gap: 2px; padding: 0 28px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(7,15,26,0.6);
+  overflow-x: auto; position: sticky; top: 71px; z-index: 40;
+}
+.tab {
+  padding: 12px 14px; font-size: 12.5px; font-weight: 600;
+  color: var(--text-muted); white-space: nowrap;
+  border-bottom: 2px solid transparent;
+  transition: color .15s, border-color .15s;
+}
+.tab:hover { color: var(--text-dim); }
+.tab.active { color: var(--teal); border-bottom-color: var(--teal); }
+
+/* ===== MAIN ===== */
+main { max-width: 1280px; margin: 0 auto; padding: 28px 28px 100px; }
+.view { display: none; animation: fadeIn .35s ease; }
+.view.active { display: block; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+/* ===== CARDS & LAYOUT ===== */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 22px;
+  backdrop-filter: blur(12px);
+}
+.card-solid { background: var(--surface-solid); }
+.grid { display: grid; gap: 14px; }
+.g2 { grid-template-columns: repeat(2, minmax(0,1fr)); }
+.g3 { grid-template-columns: repeat(3, minmax(0,1fr)); }
+.g4 { grid-template-columns: repeat(4, minmax(0,1fr)); }
+@media(max-width:980px){ .g3,.g4 { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+@media(max-width:680px){ .g2,.g3,.g4 { grid-template-columns: 1fr; } }
+
+.section-title {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 12px; margin: 28px 0 14px; flex-wrap: wrap;
+}
+.section-title h2 { font-size: 17px; font-weight: 700; }
+.section-title .hint { font-size: 12.5px; color: var(--text-muted); }
+
+/* ===== HERO ===== */
+.hero {
+  position: relative; border-radius: 20px; padding: 40px 36px;
+  background: linear-gradient(145deg, #0c1f35 0%, #0a1628 50%, #0d2438 100%);
+  border: 1px solid var(--border);
+  overflow: hidden; margin-bottom: 28px;
+}
+.hero::before {
+  content: ''; position: absolute; top: -40%; right: -20%;
+  width: 500px; height: 500px;
+  background: radial-gradient(circle, rgba(45,212,191,0.1), transparent 70%);
+  pointer-events: none;
+}
+.hero .kicker {
+  display: inline-block; font-size: 11px; font-weight: 700;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--gold); margin-bottom: 12px;
+}
+.hero h2 {
+  font-family: var(--serif); font-size: 32px; font-weight: 400;
+  letter-spacing: -0.02em; max-width: 700px; margin-bottom: 12px;
+  line-height: 1.2;
+}
+.hero p { color: var(--text-dim); max-width: 640px; font-size: 15px; }
+.hero-stats {
+  display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-top: 28px;
+}
+@media(max-width:700px){ .hero-stats { grid-template-columns: repeat(2,1fr); } }
+.hero-stat {
+  background: rgba(255,255,255,0.04); border: 1px solid var(--border);
+  border-radius: 12px; padding: 14px 16px;
+}
+.hero-stat .v { font-size: 22px; font-weight: 800; color: var(--text); }
+.hero-stat .k { font-size: 11px; color: var(--text-muted); font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.04em; margin-top: 2px; }
+
+/* ===== BADGES ===== */
+.badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 9px; border-radius: 999px;
+  font-size: 10.5px; font-weight: 700; letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+.badge::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+.b-verified { background: rgba(45,212,191,0.12); color: var(--teal); }
+.b-published { background: rgba(96,165,250,0.12); color: var(--blue); }
+.b-open { background: rgba(45,212,191,0.1); color: #5eead4; }
+.b-precedent { background: rgba(232,195,106,0.12); color: var(--gold); }
+.b-mandate { background: rgba(167,139,250,0.12); color: var(--purple); }
+.b-inferred { background: rgba(255,255,255,0.06); color: var(--text-dim); }
+.b-interest { background: rgba(96,165,250,0.15); color: var(--blue); }
+.b-nda { background: rgba(232,195,106,0.15); color: var(--gold); }
+.b-terms { background: rgba(45,212,191,0.15); color: var(--teal); }
+
+/* ===== BUTTONS ===== */
+.btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 9px 16px; border-radius: 10px;
+  font-size: 13px; font-weight: 600; transition: all .15s;
+}
+.btn-primary {
+  background: linear-gradient(135deg, #2dd4bf, #14b8a6);
+  color: #042f2e; box-shadow: 0 2px 12px rgba(45,212,191,0.25);
+}
+.btn-primary:hover { filter: brightness(1.08); transform: translateY(-1px); }
+.btn-secondary {
+  background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: var(--text);
+}
+.btn-secondary:hover { border-color: var(--border-hover); background: rgba(255,255,255,0.08); }
+.btn-ghost { color: var(--teal); padding: 9px 10px; }
+.btn-ghost:hover { background: var(--teal-dim); border-radius: 8px; }
+.btn-sm { padding: 6px 12px; font-size: 12px; }
+.btn-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+
+/* ===== CHIPS ===== */
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+.chip {
+  background: rgba(255,255,255,0.05); border: 1px solid var(--border);
+  color: var(--text-dim); border-radius: 999px; padding: 3px 10px;
+  font-size: 11.5px; font-weight: 600;
+}
+.chip.active { background: var(--teal-dim); color: var(--teal); border-color: rgba(45,212,191,0.3); }
+
+/* ===== TABLES ===== */
+table.data { width: 100%; border-collapse: collapse; font-size: 13px; }
+table.data th {
+  text-align: left; font-size: 10.5px; text-transform: uppercase;
+  letter-spacing: 0.06em; color: var(--text-muted); font-weight: 700;
+  border-bottom: 1px solid var(--border); padding: 10px 12px;
+}
+table.data td { padding: 11px 12px; border-bottom: 1px solid rgba(255,255,255,0.04); vertical-align: top; }
+table.data tr:last-child td { border-bottom: none; }
+
+.sev {
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.04em; padding: 2px 8px; border-radius: 999px;
+}
+.sev.critical { background: rgba(251,113,133,0.15); color: var(--rose); }
+.sev.high { background: rgba(232,195,106,0.15); color: var(--gold); }
+.sev.medium { background: rgba(96,165,250,0.12); color: var(--blue); }
+.sev.low { background: rgba(45,212,191,0.12); color: var(--teal); }
+
+/* ===== STEPPER ===== */
+.stepper { display: grid; grid-template-columns: repeat(6,1fr); gap: 8px; margin: 16px 0 20px; }
+@media(max-width:1000px){ .stepper { grid-template-columns: repeat(3,1fr); } }
+.step {
+  background: rgba(255,255,255,0.03); border: 1px solid var(--border);
+  border-radius: 12px; padding: 12px 10px; text-align: left;
+  display: flex; flex-direction: column; gap: 2px; transition: all .15s;
+}
+.step:hover { border-color: var(--border-hover); }
+.step .num { font-size: 10px; font-weight: 800; color: var(--text-muted); }
+.step .lbl { font-size: 12px; font-weight: 600; line-height: 1.3; }
+.step .st { font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; font-weight: 700; color: var(--text-muted); }
+.step.complete { border-color: rgba(45,212,191,0.25); background: rgba(45,212,191,0.06); }
+.step.complete .st { color: var(--teal); }
+.step.active { border-color: var(--teal); box-shadow: 0 0 0 3px rgba(45,212,191,0.12); }
+.step.active .st { color: var(--teal); }
+
+/* ===== MATCH SCORE ===== */
+.match-score {
+  width: 40px; height: 40px; border-radius: 50%;
+  display: grid; place-items: center; font-weight: 800; font-size: 12.5px; flex: none;
+  background: rgba(255,255,255,0.05); color: var(--text-dim);
+}
+.match-score.high { background: rgba(45,212,191,0.15); color: var(--teal); }
+.match-score.med { background: rgba(232,195,106,0.12); color: var(--gold); }
+.match-score.low { background: rgba(251,113,133,0.12); color: var(--rose); }
+
+/* ===== METRICS ===== */
+.metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 14px; margin: 8px 0; }
+.metrics .k { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); font-weight: 600; }
+.metrics .v { font-size: 15px; font-weight: 700; }
+.metrics .v.neg { color: var(--rose); }
+
+.mini { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin: 10px 0; padding: 10px 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+.mini dt { font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); font-weight: 700; }
+.mini dd { margin-top: 2px; font-size: 13px; font-weight: 600; }
+
+.legal-note {
+  font-size: 12.5px; background: rgba(45,212,191,0.05);
+  border-left: 3px solid var(--teal); padding: 8px 12px;
+  border-radius: 0 8px 8px 0; color: var(--text-dim); margin: 8px 0;
+}
+.source { font-size: 11.5px; color: var(--text-muted); margin-top: 8px; }
+.callout {
+  background: rgba(45,212,191,0.06); border: 1px solid rgba(45,212,191,0.15);
+  border-radius: 12px; padding: 14px 16px; margin: 14px 0;
+}
+.callout h4 { font-size: 13px; color: var(--teal); margin-bottom: 4px; }
+.callout p { font-size: 13px; color: var(--text-dim); margin: 0; }
+.callout.warn { background: rgba(232,195,106,0.06); border-color: rgba(232,195,106,0.2); }
+.callout.warn h4 { color: var(--gold); }
+.alert-bar {
+  background: rgba(232,195,106,0.08); border: 1px solid rgba(232,195,106,0.2);
+  border-radius: 10px; padding: 10px 14px; font-size: 12.5px;
+  margin-bottom: 14px; color: var(--text-dim);
+}
+.filters { display: grid; grid-template-columns: repeat(auto-fit,minmax(150px,1fr)); gap: 10px; margin-bottom: 14px; }
+.filters label { display: block; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin-bottom: 4px; }
+.count { font-size: 12.5px; color: var(--text-muted); margin-bottom: 12px; }
+.panel-title { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); font-weight: 700; margin-bottom: 10px; }
+.list { list-style: none; }
+.list li { padding: 7px 0; border-bottom: 1px dashed var(--border); display: flex; gap: 10px; font-size: 13.5px; }
+.list li:last-child { border-bottom: none; }
+.list .tick { color: var(--teal); font-weight: 700; flex: none; }
+.provider-top, .project-top { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; }
+.scenario { position: relative; }
+.scenario.recommended { border-color: rgba(45,212,191,0.35); }
+.rec {
+  position: absolute; top: -11px; left: 16px;
+  background: var(--teal); color: #042f2e;
+  font-size: 10px; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase;
+  padding: 3px 10px; border-radius: 999px;
+}
+.timeline { border-left: 2px solid var(--border); padding-left: 16px; margin: 12px 0; }
+.timeline-item { position: relative; padding-bottom: 14px; }
+.timeline-item::before {
+  content: ''; position: absolute; left: -21px; top: 4px;
+  width: 10px; height: 10px; border-radius: 50%;
+  background: var(--teal); border: 2px solid var(--bg); box-shadow: 0 0 0 2px var(--teal);
+}
+.timeline-item.pending::before { background: var(--text-muted); box-shadow: 0 0 0 2px var(--text-muted); }
+.empty-state { text-align: center; padding: 48px 20px; color: var(--text-muted); }
+.empty-state h3 { color: var(--text); margin-bottom: 8px; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+@media(max-width:700px){ .form-grid { grid-template-columns: 1fr; } }
+.form-row { margin-bottom: 12px; }
+.form-row.full { grid-column: 1 / -1; }
+.form-row label { display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin-bottom: 4px; }
+
+/* ===== MAP ===== */
+#map-wrap {
+  position: relative; border-radius: 16px; overflow: hidden;
+  background: #060d18; border: 1px solid var(--border);
+}
+#flow-map { width: 100%; height: 580px; display: block; }
+.country { fill: #1a2d45; stroke: #0c1829; stroke-width: 0.5; cursor: pointer; transition: fill .25s; }
+.country:hover { fill: #243d5c; }
+.country.focused { fill: #0f766e; }
+.country.dimmed { fill: #111e30; opacity: 0.5; }
+.flow-arc { fill: none; stroke-linecap: round; opacity: 0.7; pointer-events: stroke; transition: opacity .2s; }
+.flow-arc:hover { opacity: 1; }
+#map-tooltip {
+  display: none; position: absolute; z-index: 10;
+  background: rgba(7,15,26,0.95); color: var(--text);
+  padding: 10px 14px; border-radius: 10px; font-size: 12.5px;
+  pointer-events: none; max-width: 260px;
+  border: 1px solid rgba(45,212,191,0.25); box-shadow: var(--shadow);
+}
+#map-side-panel {
+  display: none; position: absolute; top: 16px; right: 16px;
+  width: 300px; max-height: 540px; overflow: auto;
+  background: rgba(16,30,48,0.95); backdrop-filter: blur(16px);
+  border: 1px solid var(--border); border-radius: 14px;
+  padding: 18px; z-index: 5; box-shadow: var(--shadow);
+}
+#map-side-panel .flow-row {
+  display: flex; justify-content: space-between; gap: 8px;
+  padding: 7px 0; border-bottom: 1px dashed var(--border); font-size: 12.5px;
+}
+#map-side-panel .flow-row:last-child { border-bottom: none; }
+#map-empty-hint { position:absolute; top:16px; left:50%; transform:translateX(-50%); z-index:4; pointer-events:none;
+  background:rgba(7,15,26,0.88); border:1px solid rgba(45,212,191,0.25); color:var(--text-dim);
+  padding:8px 16px; border-radius:999px; font-size:12.5px; font-weight:600; }
+.hub-dot { fill:#2dd4bf; opacity:.55; pointer-events:none; }
+.cat-tiles { display:grid; grid-template-columns:repeat(auto-fill,minmax(170px,1fr)); gap:8px; margin-bottom:14px; }
+.cat-tile { text-align:left; background:rgba(255,255,255,0.03); border:1px solid var(--border); border-radius:12px; padding:10px 12px; transition:all .15s; }
+.cat-tile:hover { border-color:var(--border-hover); }
+.cat-tile.active { border-color:var(--teal); background:var(--teal-dim); }
+.cat-tile .n { font-size:20px; font-weight:800; display:block; }
+.cat-tile .l { font-size:11.5px; color:var(--text-dim); font-weight:600; line-height:1.3; }
+.cat-tag { display:inline-block; font-size:10.5px; font-weight:700; letter-spacing:.03em; padding:2px 8px; border-radius:999px; background:rgba(167,139,250,0.14); color:var(--purple); margin-bottom:6px; }
+.map-controls {
+  position: absolute; bottom: 16px; left: 16px; z-index: 5;
+  display: flex; gap: 8px; align-items: center;
+}
+.map-controls .btn { backdrop-filter: blur(8px); }
+
+/* ===== AI WIZARD ===== */
+.ai-fab {
+  position: fixed; bottom: 28px; right: 28px; z-index: 80;
+  width: 56px; height: 56px; border-radius: 50%;
+  background: linear-gradient(135deg, #2dd4bf, #0d9488);
+  color: #042f2e; font-size: 22px;
+  display: grid; place-items: center;
+  box-shadow: 0 4px 24px rgba(45,212,191,0.35);
+  transition: transform .2s, box-shadow .2s;
+  border: 2px solid rgba(255,255,255,0.15);
+}
+.ai-fab:hover { transform: scale(1.06); box-shadow: 0 6px 32px rgba(45,212,191,0.45); }
+.ai-panel {
+  position: fixed; bottom: 96px; right: 28px; z-index: 80;
+  width: 380px; max-height: 520px;
+  background: rgba(12,24,41,0.97); backdrop-filter: blur(20px);
+  border: 1px solid rgba(45,212,191,0.2); border-radius: 18px;
+  box-shadow: 0 16px 48px rgba(0,0,0,0.5);
+  display: none; flex-direction: column; overflow: hidden;
+  animation: slideUp .3s ease;
+}
+.ai-panel.open { display: flex; }
+@keyframes slideUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+.ai-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 18px; border-bottom: 1px solid var(--border);
+}
+.ai-header h3 { font-size: 14px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+.ai-header h3 span { font-size: 18px; }
+.ai-close { color: var(--text-muted); font-size: 18px; padding: 4px; }
+.ai-close:hover { color: var(--text); }
+.ai-body { flex: 1; overflow-y: auto; padding: 16px 18px; }
+.ai-msg {
+  margin-bottom: 14px; padding: 12px 14px; border-radius: 12px;
+  font-size: 13px; line-height: 1.5;
+}
+.ai-msg.bot {
+  background: rgba(45,212,191,0.08); border: 1px solid rgba(45,212,191,0.12);
+  color: var(--text);
+}
+.ai-msg.user {
+  background: rgba(255,255,255,0.04); border: 1px solid var(--border);
+  color: var(--text-dim); margin-left: 24px;
+}
+.ai-suggestions { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+.ai-sug {
+  text-align: left; padding: 10px 12px; border-radius: 10px;
+  background: rgba(255,255,255,0.03); border: 1px solid var(--border);
+  font-size: 12.5px; color: var(--text-dim); transition: all .15s;
+}
+.ai-sug:hover { border-color: rgba(45,212,191,0.3); color: var(--teal); background: rgba(45,212,191,0.06); }
+.ai-footer {
+  padding: 12px 18px; border-top: 1px solid var(--border);
+  display: flex; gap: 8px;
+}
+.ai-footer input { flex: 1; font-size: 13px; }
+.ai-footer .btn { flex: none; }
+
+/* ===== TUTORIAL OVERLAY ===== */
+.tutorial-overlay {
+  position: fixed; inset: 0; z-index: 100;
+  background: rgba(3,8,16,0.82); backdrop-filter: blur(6px);
+  display: none; align-items: center; justify-content: center;
+  padding: 24px;
+}
+.tutorial-overlay.open { display: flex; }
+.tutorial-card {
+  background: var(--surface-solid); border: 1px solid rgba(45,212,191,0.2);
+  border-radius: 20px; max-width: 560px; width: 100%;
+  padding: 36px 32px; box-shadow: 0 24px 64px rgba(0,0,0,0.5);
+  animation: slideUp .35s ease;
+}
+.tutorial-card .step-indicator {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--teal); margin-bottom: 12px;
+}
+.tutorial-card h2 {
+  font-family: var(--serif); font-size: 26px; font-weight: 400;
+  margin-bottom: 12px; letter-spacing: -0.02em;
+}
+.tutorial-card p { color: var(--text-dim); font-size: 14.5px; margin-bottom: 20px; line-height: 1.6; }
+.tutorial-card ul { margin: 0 0 20px 18px; color: var(--text-dim); font-size: 14px; }
+.tutorial-card ul li { margin-bottom: 6px; }
+.tutorial-actions { display: flex; gap: 10px; justify-content: flex-end; }
+.tutorial-dots { display: flex; gap: 6px; margin-bottom: 20px; }
+.tutorial-dots span {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: rgba(255,255,255,0.12);
+}
+.tutorial-dots span.active { background: var(--teal); }
+
+/* ===== GUIDE PAGE ===== */
+.guide-section { margin-bottom: 28px; }
+.guide-section h3 { font-size: 15px; margin-bottom: 8px; color: var(--teal); }
+.guide-section p, .guide-section li { color: var(--text-dim); font-size: 13.5px; }
+.guide-section ul { margin: 8px 0 0 18px; }
+.guide-section li { margin-bottom: 5px; }
+
+/* ===== FOOTER ===== */
+footer {
+  border-top: 1px solid var(--border); padding: 20px 28px;
+  color: var(--text-muted); font-size: 11.5px; text-align: center;
+}
+
+/* ===== MODAL ===== */
+.modal-bg {
+  position: fixed; inset: 0; background: rgba(3,8,16,0.7);
+  display: none; align-items: center; justify-content: center;
+  z-index: 90; padding: 20px; backdrop-filter: blur(4px);
+}
+.modal-bg.open { display: flex; }
+.modal {
+  background: var(--surface-solid); border: 1px solid var(--border);
+  border-radius: 18px; max-width: 520px; width: 100%; max-height: 90vh;
+  overflow: auto; padding: 28px; box-shadow: 0 24px 64px rgba(0,0,0,0.5);
+}
+.modal h3 { margin-bottom: 8px; font-size: 17px; }
+.modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+
+/* ===== PRINCIPLE CARDS ===== */
+.principle {
+  padding: 18px; border-radius: 14px;
+  background: rgba(255,255,255,0.02); border: 1px solid var(--border);
+  transition: border-color .2s;
+}
+.principle:hover { border-color: var(--border-hover); }
+.principle h3 { font-size: 13.5px; margin-bottom: 6px; }
+.principle p { font-size: 12.5px; color: var(--text-muted); margin: 0; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<div class="proto-bar">Prototype v4 · Illustrative data only · Not a legal opinion or funding commitment</div>
+
+<header class="site-header">
+  <div class="brand">
+    <div class="logo">CI</div>
+    <div class="brand-text">
+      <h1>Capital Intelligence</h1>
+      <p>Infrastructure funding platform</p>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="role-switch" id="role-switch">
+      <button class="role-btn active" data-role="borrower">Borrower</button>
+      <button class="role-btn" data-role="provider">Capital provider</button>
+    </div>
+    <div class="jurisdiction">
+      <select id="jurisdiction">
+        <option value="za-muni">South Africa — Local Municipality</option>
+        <option value="za-metro">South Africa — Metropolitan</option>
+        <option value="za-nat">South Africa — National</option>
+        <option value="drc-prov">DRC — Provincial</option>
+        <option value="ke-county">Kenya — County</option>
+        <option value="zm-muni">Zambia — Local Authority</option>
+      </select>
+    </div>
+    <button class="btn btn-secondary btn-sm" onclick="openTutorial()">Tutorial</button>
+  </div>
+</header>
+
+<nav class="tabs" id="main inc-tabs"></nav>
+
+<main>
+
+<!-- OVERVIEW -->
+<section class="view active" id="view-overview">
+  <div class="hero">
+    <span class="kicker">Infrastructure funding platform</span>
+    <h2>Connect African projects to the right global capital — stage by stage, with legal authority and end-to-end workflow.</h2>
+    <p>Borrowers bring projects. Capital providers bring mandates. The platform checks legal authority, matches stage-appropriate funding, surfaces bankability gaps, and supports structured engagement through to close.</p>
+    <div class="hero-stats">
+      <div class="hero-stat"><div class="v">12</div><div class="k">Active projects</div></div>
+      <div class="hero-stat"><div class="v" id="hero-facilities">28</div><div class="k">Capital providers</div></div>
+      <div class="hero-stat"><div class="v">7</div><div class="k">Live engagements</div></div>
+      <div class="hero-stat"><div class="v">R2.1bn</div><div class="k">Pipeline value</div></div>
+    </div>
+  </div>
+
+  <div class="section-title"><h2>Platform principles</h2></div>
+  <div class="grid g3">
+    <div class="principle"><h3>Legal authority first</h3><p>A willing lender is irrelevant if the borrower cannot lawfully borrow. Authority is checked before matching.</p></div>
+    <div class="principle"><h3>Stage-aware capital</h3><p>Preparation grants are first-class. Construction capital is matched only when the project is ready.</p></div>
+    <div class="principle"><h3>Evidence over claims</h3><p>Mandate ≠ available money. Every claim carries source, date, confidence and status.</p></div>
+    <div class="principle"><h3>Two-sided liquidity</h3><p>Borrowers and capital providers both define needs. Matching is bidirectional and transparent.</p></div>
+    <div class="principle"><h3>End-to-end workflow</h3><p>Discovery → interest → NDA → data room → terms → close, with full audit trail.</p></div>
+    <div class="principle"><h3>Neutrality</h3><p>No paid ranking. Capital providers cannot buy preferential placement.</p></div>
+  </div>
+
+  <div class="section-title"><h2>Evidence labels</h2></div>
+  <div class="card">
+    <div class="grid g2" style="gap:10px">
+      <div><span class="badge b-verified">Verified current</span> <span class="hint" style="margin-left:6px;font-size:12px;color:var(--text-muted)">Authoritative source, within review period</span></div>
+      <div><span class="badge b-published">Published programme</span> <span class="hint" style="margin-left:6px;font-size:12px;color:var(--text-muted)">Official facility; capacity unconfirmed</span></div>
+      <div><span class="badge b-open">Open funding call</span> <span class="hint" style="margin-left:6px;font-size:12px;color:var(--text-muted)">Published window with deadline</span></div>
+      <div><span class="badge b-precedent">Historical precedent</span> <span class="hint" style="margin-left:6px;font-size:12px;color:var(--text-muted)">Prior deal — not current availability</span></div>
+      <div><span class="badge b-mandate">Mandate match</span> <span class="hint" style="margin-left:6px;font-size:12px;color:var(--text-muted)">Mandate relevant; no allocation confirmed</span></div>
+      <div><span class="badge b-inferred">Inferred / analytical</span> <span class="hint" style="margin-left:6px;font-size:12px;color:var(--text-muted)">AI assessment — requires human review</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- PROJECTS -->
+<section class="view" id="view-projects">
+  <div class="section-title">
+    <h2>My projects</h2>
+    <button class="btn btn-primary btn-sm" onclick="openModal('new-project')">+ New project</button>
+  </div>
+  <div class="grid g2" id="project-list"></div>
+</section>
+
+<!-- WORKSPACE -->
+<section class="view" id="view-workspace">
+  <div id="workspace-header"></div>
+  <div class="stepper" id="stepper"></div>
+  <div class="grid g2" style="align-items:start">
+    <div class="card">
+      <div class="panel-title" id="stage-title">Stage requirements</div>
+      <ul class="list" id="stage-activities"></ul>
+      <div class="callout" id="stage-outputs"></div>
+    </div>
+    <div class="card">
+      <div class="panel-title">Stage-matched capital</div>
+      <div id="stage-funding"></div>
+    </div>
+  </div>
+  <div class="section-title"><h2>Bankability gap register</h2><span class="hint">Against specific funder requirements</span></div>
+  <div class="card" style="padding:0;overflow:hidden">
+    <table class="data">
+      <thead><tr><th>Gap</th><th>Severity</th><th>Stage</th><th>Remedy</th><th>Status</th></tr></thead>
+      <tbody id="gap-body"></tbody>
+    </table>
+  </div>
+  <div class="callout" style="margin-top:14px">
+    <h4>Recommended next action</h4>
+    <p id="next-action">Commission feasibility studies using preparation grants. Confirm borrowing headroom in parallel. <span class="badge b-inferred">Inferred</span></p>
+  </div>
+</section>
+
+<!-- LEGAL -->
+<section class="view" id="view-legal">
+  <div class="card" style="margin-bottom:16px;border-left:3px solid var(--gold)">
+    <h2 style="font-size:16px;margin-bottom:6px">Legal &amp; fiscal authority check</h2>
+    <p style="color:var(--text-dim);font-size:13px;margin:0">Decision support only. Not a legal opinion. Verify every rule with local counsel.</p>
+  </div>
+  <div class="alert-bar" id="legal-summary"><strong>Summary:</strong> <span id="legal-summary-text">Loading…</span></div>
+  <div class="card" style="padding:0;overflow:hidden">
+    <table class="data">
+      <thead><tr><th style="width:22%">Question</th><th>Status</th><th>Citation &amp; note</th><th style="width:12%">Reviewed</th></tr></thead>
+      <tbody id="legal-body"></tbody>
+    </table>
+  </div>
+  <div class="callout warn" style="margin-top:14px">
+    <h4>What the platform will not do</h4>
+    <p>It will not recommend structures designed to evade borrowing restrictions. Contingent liabilities are identified and surfaced.</p>
+  </div>
+</section>
+
+<!-- SCENARIOS -->
+<section class="view" id="view-scenarios">
+  <div class="section-title"><h2>Financing strategy comparison</h2><span class="hint">Whole-of-life cost · Illustrative</span></div>
+  <div class="card" style="margin-bottom:14px">
+    <div class="grid g4">
+      <div><div class="panel-title">Project capex</div><div style="font-size:20px;font-weight:800">R420.0m</div></div>
+      <div><div class="panel-title">Currency</div><div style="font-size:20px;font-weight:800">ZAR</div></div>
+      <div><div class="panel-title">Stage</div><div style="font-size:20px;font-weight:800">Feasibility</div></div>
+      <div><div class="panel-title">Modelling</div><div style="font-size:20px;font-weight:800">Illustrative</div></div>
+    </div>
+  </div>
+  <div class="card" style="margin-bottom:16px">
+    <div style="display:grid;grid-template-columns:1fr 2fr;gap:14px 20px;align-items:center">
+      <div>
+        <div class="panel-title">FX stress test</div>
+        <p style="font-size:12.5px;color:var(--text-muted);margin:0">Depreciation of local currency against foreign-currency debt.</p>
+      </div>
+      <div>
+        <input id="fx-slider" type="range" min="0" max="50" step="1" value="15" style="accent-color:var(--teal);width:100%">
+        <div style="display:flex;justify-content:space-between;font-size:12px;margin-top:4px">
+          <span style="color:var(--text-muted)">0%</span><strong id="fx-value">15%</strong><span style="color:var(--text-muted)">50%</span>
+        </div>
+      </div>
+      <div>
+        <div class="panel-title">Interest-rate stress</div>
+        <p style="font-size:12.5px;color:var(--text-muted);margin:0">Rise in the reference rate, applied to the floating share of each loan.</p>
+      </div>
+      <div>
+        <input id="rate-slider" type="range" min="0" max="400" step="25" value="100" style="accent-color:var(--gold);width:100%">
+        <div style="display:flex;justify-content:space-between;font-size:12px;margin-top:4px">
+          <span style="color:var(--text-muted)">0 bps</span><strong id="rate-value">+100 bps</strong><span style="color:var(--text-muted)">+400 bps</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="grid g2" id="scenario-grid"></div>
+</section>
+
+<!-- MATCHES -->
+<section class="view" id="view-matches">
+  <div class="section-title"><h2>Capital matches</h2><span class="hint">Ranked by stage fit, legal compatibility, mandate alignment</span></div>
+  <div class="filters">
+    <div><label>Search</label><input id="match-search" type="search" placeholder="Provider, instrument…"></div>
+    <div><label>Category</label><select id="match-cat"><option value="all">All categories</option></select></div>
+    <div><label>Instrument</label>
+      <select id="match-type"><option value="all">All</option><option>Grant / technical assistance</option><option>Project preparation</option><option>Concessional debt</option><option>Commercial debt</option><option>ECA / guarantee</option><option>Guarantee / risk</option><option>Equity</option></select>
+    </div>
+    <div><label>Min. score</label>
+      <select id="match-score-filter"><option value="0">Any</option><option value="60">60+</option><option value="75">75+</option><option value="85">85+</option></select>
+    </div>
+    <div><label>Status</label>
+      <select id="match-status"><option value="all">All</option><option value="none">Not engaged</option><option value="interest">Interest</option><option value="nda">NDA active</option></select>
+    </div>
+  </div>
+  <div class="count" id="match-count"></div>
+  <div class="grid g2" id="match-grid"></div>
+</section>
+
+<!-- DEALROOM -->
+<section class="view" id="view-dealroom">
+  <div class="section-title"><h2>Deal rooms &amp; engagements</h2><span class="hint">Permissioned · NDA-gated</span></div>
+  <div id="dealroom-list"></div>
+</section>
+
+<!-- CAPITAL EXPLORER -->
+<section class="view" id="view-capital">
+  <div class="section-title"><h2>Global capital explorer</h2><span class="hint" id="cap-hint">Structured intelligence — not a ranking</span></div>
+  <div class="btn-row" style="margin:0 0 12px">
+    <button class="btn btn-primary btn-sm" onclick="openModal('add-provider')">+ Add provider</button>
+    <button class="btn btn-secondary btn-sm" onclick="document.getElementById('csv-file').click()">Import CSV</button>
+    <button class="btn btn-secondary btn-sm" onclick="exportCapitalCSV()">Export CSV</button>
+    <input type="file" id="csv-file" accept=".csv,text/csv" style="display:none" onchange="importCapitalCSV(this)">
+  </div>
+  <div class="cat-tiles" id="cat-tiles"></div>
+  <div class="filters">
+    <div><label>Search</label><input id="cap-search" type="search" placeholder="Providers, sectors…"></div>
+    <div><label>Category</label><select id="cap-cat"><option value="all">All categories</option></select></div>
+    <div><label>Instrument</label>
+      <select id="cap-type"><option value="all">All</option><option>Grant / technical assistance</option><option>Project preparation</option><option>Concessional debt</option><option>Commercial debt</option><option>ECA / guarantee</option><option>Guarantee / risk</option><option>Equity</option><option>Advisory (not capital)</option></select>
+    </div>
+    <div><label>Stage</label>
+      <select id="cap-stage"><option value="all">All</option><option value="concept">Concept</option><option value="feasibility">Feasibility</option><option value="structuring">Structuring</option><option value="transaction">Transaction</option><option value="construction">Construction</option><option value="ops">Operations</option></select>
+    </div>
+    <div><label>Evidence</label>
+      <select id="cap-conf"><option value="all">All</option><option value="verified">Verified</option><option value="published">Published</option><option value="open">Open call</option><option value="precedent">Precedent</option><option value="mandate">Mandate</option><option value="inferred">Inferred</option></select>
+    </div>
+  </div>
+  <div class="count" id="cap-count"></div>
+  <div class="grid g2" id="cap-grid"></div>
+  <div class="callout" style="margin-top:18px">
+    <h4>How the provider database grows</h4>
+    <p>1) <strong>Seed</strong> from public mandates, annual reports and DFI/ECA programme pages — tagged “Mandate match” until confirmed. 2) <strong>Import</strong> in bulk via CSV (columns: name, category, type, ticket, currency, geographies, sectors, stages, description, eligibility, source). 3) <strong>Self-register</strong> — providers submit mandates themselves and move to “Verified” after review. 4) <strong>Licensed data</strong> (e.g. PEI, Preqin, IJGlobal, Convergence) plugged in for funds, pension and family-office coverage. 5) Every record keeps source, date and evidence status; stale records (&gt;12 months) are flagged for re-verification.</p>
+  </div>
+</section>
+
+<!-- FLOWS TABLE -->
+<section class="view" id="view-flows">
+  <div class="section-title"><h2>Capital flows &amp; transaction intelligence</h2><span class="hint">Illustrative patterns · Not current availability</span></div>
+  <div class="alert-bar"><strong>Note:</strong> Real flows require licensed data. Figures below are synthesised for product evaluation.</div>
+  <div class="grid g3" style="margin-bottom:18px">
+    <div class="card"><div class="panel-title">Indicative annual flow to SSA</div><div style="font-size:26px;font-weight:800">~$48bn</div><p style="font-size:12px;color:var(--text-muted);margin:4px 0 0">All sources · multi-year concept</p></div>
+    <div class="card"><div class="panel-title">Preparation vs construction</div><div style="font-size:26px;font-weight:800">~8% / 92%</div><p style="font-size:12px;color:var(--text-muted);margin:4px 0 0">Preparation remains under-funded</p></div>
+    <div class="card"><div class="panel-title">Blended structures</div><div style="font-size:26px;font-weight:800">~34%</div><p style="font-size:12px;color:var(--text-muted);margin:4px 0 0">Of closed deals used concessional layer</p></div>
+  </div>
+  <div class="section-title"><h2>Flows by instrument</h2></div>
+  <div class="card" id="flow-instruments"></div>
+  <div class="section-title"><h2>Why capital goes where it goes</h2></div>
+  <div class="grid g2" id="flow-drivers"></div>
+  <div class="section-title"><h2>Sample transactions</h2></div>
+  <div class="card" style="padding:0;overflow:hidden">
+    <table class="data">
+      <thead><tr><th>Project</th><th>Country</th><th>Providers</th><th>Structure</th><th>Amount</th><th>Year</th><th>Status</th></tr></thead>
+      <tbody id="txn-body"></tbody>
+    </table>
+  </div>
+</section>
+
+<!-- FLOWS MAP -->
+<section class="view" id="view-map">
+  <div class="section-title">
+    <h2>Global capital flows map</h2>
+    <span class="hint">Click a country to reveal its capital flows · Arcs appear only on selection</span>
+  </div>
+  <div class="alert-bar"><strong>Illustrative data.</strong> Volumes and routes are synthesised for evaluation. They do not represent verified or real-time commitments.</div>
+  <div id="map-wrap">
+    <svg id="flow-map"></svg>
+    <div id="map-empty-hint">Click a country to reveal its capital flows</div>
+    <div id="map-tooltip"></div>
+    <div id="map-side-panel">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
+        <h3 id="panel-country" style="font-size:15px;margin:0">Country</h3>
+        <button onclick="clearMapFocus()" style="color:var(--text-muted);font-size:18px">×</button>
+      </div>
+      <div id="panel-summary" style="font-size:12.5px;color:var(--text-muted);margin-bottom:12px"></div>
+      <div class="panel-title">Outbound</div>
+      <div id="panel-out" style="margin-bottom:14px"></div>
+      <div class="panel-title">Inbound</div>
+      <div id="panel-in"></div>
+      <div class="btn-row"><button class="btn btn-secondary btn-sm" onclick="clearMapFocus()">Show all</button></div>
+    </div>
+    <div class="map-controls">
+      <button class="btn btn-secondary btn-sm" id="anim-toggle" onclick="toggleAnimation()">Enable animation</button>
+      <button class="btn btn-secondary btn-sm" onclick="clearMapFocus()">Reset view</button>
+    </div>
+  </div>
+  <div class="grid g3" style="margin-top:16px">
+    <div class="card"><div class="panel-title">How to use</div><p style="font-size:12.5px;color:var(--text-muted);margin:0">Click any country (teal dots mark markets with flow data) to reveal arcs in and out of that market. Hover arcs for volume and type. Reset clears the selection.</p></div>
+    <div class="card"><div class="panel-title">Arc meaning</div><p style="font-size:12.5px;color:var(--text-muted);margin:0">Thicker arcs = larger illustrative volume. Teal = DFI/concessional · Gold = commercial · Purple = ECA/guarantee · Green = grant.</p></div>
+    <div class="card"><div class="panel-title">Data status</div><p style="font-size:12.5px;color:var(--text-muted);margin:0">All volumes are synthesised. Real deployment requires licensed transaction data and continuous verification.</p></div>
+  </div>
+</section>
+
+<!-- PROVIDER MANDATE -->
+<section class="view" id="view-mandate">
+  <div class="section-title"><h2>My mandate &amp; preferences</h2><span class="hint">Defines what opportunities surface for you</span></div>
+  <div class="card">
+    <div class="form-grid">
+      <div class="form-row"><label>Institution</label><input type="text" value="Nordic Climate Infrastructure Fund (illustrative)"></div>
+      <div class="form-row"><label>Type</label>
+        <select><option>DFI / Multilateral</option><option selected>Infrastructure fund</option><option>Commercial bank</option><option>ECA</option><option>Climate fund</option></select>
+      </div>
+      <div class="form-row"><label>Ticket size (USD m)</label><input type="text" value="15 – 120"></div>
+      <div class="form-row"><label>Geographies</label><input type="text" value="South Africa, Kenya, Zambia, Ghana, Senegal"></div>
+      <div class="form-row full"><label>Sectors</label>
+        <div class="chips" id="sector-chips">
+          <span class="chip active">Water</span><span class="chip active">Renewable energy</span><span class="chip">Transport</span>
+          <span class="chip active">Climate adaptation</span><span class="chip">Sanitation</span><span class="chip">Health</span>
+        </div>
+      </div>
+      <div class="form-row full"><label>Risk &amp; return notes</label>
+        <textarea rows="3">Prefer projects with sovereign or strong sub-sovereign support, clear offtake, completed feasibility. Open to blended structures.</textarea>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="alert('Mandate saved (prototype)')">Save mandate</button>
+      <button class="btn btn-secondary">Preview opportunities</button>
+    </div>
+  </div>
+</section>
+
+<!-- PROVIDER OPPS -->
+<section class="view" id="view-opps">
+  <div class="section-title"><h2>Matching opportunities</h2><span class="hint">Filtered by mandate · Legal status visible</span></div>
+  <div class="filters">
+    <div><label>Search</label><input id="opp-search" type="search" placeholder="Project, sector…"></div>
+    <div><label>Country</label><select id="opp-country"><option value="all">All</option><option>South Africa</option><option>Kenya</option><option>Zambia</option><option>DRC</option></select></div>
+    <div><label>Stage</label><select id="opp-stage"><option value="all">All</option><option value="feasibility">Feasibility</option><option value="structuring">Structuring</option><option value="transaction">Transaction</option></select></div>
+    <div><label>Min. readiness</label><select id="opp-ready"><option value="0">Any</option><option value="50">50+</option><option value="70">70+</option></select></div>
+  </div>
+  <div class="count" id="opp-count"></div>
+  <div class="grid g2" id="opp-grid"></div>
+</section>
+
+<!-- PROVIDER PIPELINE -->
+<section class="view" id="view-pipeline">
+  <div class="section-title"><h2>My engagement pipeline</h2></div>
+  <div id="pipeline-list"></div>
+</section>
+
+<!-- USER GUIDE -->
+<section class="view" id="view-guide">
+  <div class="hero" style="padding:32px">
+    <span class="kicker">Documentation</span>
+    <h2 style="font-size:28px">User guide</h2>
+    <p>How to use the platform as a borrower or capital provider. This guide reflects the prototype; production behaviour will be richer.</p>
+  </div>
+
+  <div class="guide-section card">
+    <h3>1. Getting started</h3>
+    <p>Use the role switch in the header to choose <strong>Borrower</strong> or <strong>Capital provider</strong>. Tabs and available actions change accordingly. Select your jurisdiction — this loads the relevant legal and fiscal rules.</p>
+  </div>
+  <div class="guide-section card">
+    <h3>2. Borrower journey</h3>
+    <ul>
+      <li><strong>My projects</strong> — Register a new project or open an existing one. Start from a simple concept; the platform structures it.</li>
+      <li><strong>Project workspace</strong> — Walk through lifecycle stages. See stage-matched capital and the bankability gap register.</li>
+      <li><strong>Legal &amp; fiscal</strong> — Check borrowing authority, approval paths, foreign-currency rules and guarantee constraints for your jurisdiction.</li>
+      <li><strong>Financing scenarios</strong> — Compare whole-of-life structures, including FX stress.</li>
+      <li><strong>Matches &amp; engage</strong> — Review scored capital matches. Express interest or request an NDA.</li>
+      <li><strong>Deal rooms</strong> — Manage NDA-gated engagement, data rooms and progress toward terms and close.</li>
+    </ul>
+  </div>
+  <div class="guide-section card">
+    <h3>3. Capital provider journey</h3>
+    <ul>
+      <li><strong>My mandate</strong> — Define instruments, stages, ticket size, geographies and sectors. This drives opportunity matching.</li>
+      <li><strong>Opportunities</strong> — Browse African projects that fit your mandate. Readiness score and legal status are visible.</li>
+      <li><strong>Pipeline</strong> — Track engagements you have started.</li>
+      <li><strong>Deal rooms</strong> — Same controlled workflow as borrowers once an NDA is in place.</li>
+    </ul>
+  </div>
+  <div class="guide-section card">
+    <h3>4. Capital intelligence</h3>
+    <ul>
+      <li><strong>Capital explorer</strong> — Search the provider database by category (DFIs, pension funds, private equity, family offices, endowments, sovereign wealth funds and more), stage, instrument and evidence. Add providers or bulk-import by CSV.</li>
+      <li><strong>Capital flows</strong> — Tabular view of illustrative flow patterns and drivers (“why capital goes where it goes”).</li>
+      <li><strong>Flows map</strong> — Interactive world map. Arcs appear only when you click a country, showing inbound and outbound flows. Animation is optional and off by default.</li>
+    </ul>
+  </div>
+  <div class="guide-section card">
+    <h3>5. Evidence labels</h3>
+    <p>Every material claim carries a status: Verified current, Published programme, Open funding call, Historical precedent, Mandate match, or Inferred/analytical. Treat inferred and precedent items as leads, not commitments.</p>
+  </div>
+  <div class="guide-section card">
+    <h3>6. AI wizard</h3>
+    <p>Click the teal assistant button (bottom-right) for guided help. The wizard can explain where you are, suggest next steps, and walk you through common tasks. It is decision support only — not a legal or investment opinion.</p>
+  </div>
+  <div class="guide-section card">
+    <h3>7. Important limitations</h3>
+    <ul>
+      <li>All data in this prototype is illustrative.</li>
+      <li>Legal checks are decision support, not legal opinions.</li>
+      <li>No real funding commitments or live availability are shown.</li>
+      <li>Match scores are simple heuristics for demonstration.</li>
+    </ul>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  Capital Intelligence · Infrastructure funding platform · Prototype v4 · 20 November 2026<br>
+  Illustrative data only. Not a feasibility study, legal opinion, investment memorandum or claim of committed capital.
+</footer>
+
+<!-- AI WIZARD -->
+<button class="ai-fab" id="ai-fab" onclick="toggleAI()" title="AI Guide">✦</button>
+<div class="ai-panel" id="ai-panel">
+  <div class="ai-header">
+    <h3><span>✦</span> Capital Guide</h3>
+    <button class="ai-close" onclick="toggleAI()">×</button>
+  </div>
+  <div class="ai-body" id="ai-body">
+    <div class="ai-msg bot">
+      Welcome. I’m your Capital Guide — an AI assistant for this platform. I can help you understand where you are, what to do next, and how the tools work.
+    </div>
+    <div class="ai-suggestions" id="ai-suggestions">
+      <button class="ai-sug" onclick="aiRespond('start')">I’m a borrower — where do I start?</button>
+      <button class="ai-sug" onclick="aiRespond('provider')">I’m a capital provider — show me around</button>
+      <button class="ai-sug" onclick="aiRespond('legal')">Explain the legal authority check</button>
+      <button class="ai-sug" onclick="aiRespond('map')">How does the flows map work?</button>
+      <button class="ai-sug" onclick="aiRespond('stage')">What funding exists for feasibility stage?</button>
+    </div>
+  </div>
+  <div class="ai-footer">
+    <input id="ai-input" type="text" placeholder="Ask a question…" onkeydown="if(event.key==='Enter')aiAsk()">
+    <button class="btn btn-primary btn-sm" onclick="aiAsk()">Send</button>
+  </div>
+</div>
+
+<!-- TUTORIAL -->
+<div class="tutorial-overlay" id="tutorial">
+  <div class="tutorial-card">
+    <div class="tutorial-dots" id="tut-dots"></div>
+    <div class="step-indicator" id="tut-step-label">Step 1 of 5</div>
+    <h2 id="tut-title">Welcome to Capital Intelligence</h2>
+    <div id="tut-body"></div>
+    <div class="tutorial-actions">
+      <button class="btn btn-secondary" id="tut-skip" onclick="closeTutorial()">Skip</button>
+      <button class="btn btn-primary" id="tut-next" onclick="nextTutorial()">Continue</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: New Project -->
+<div class="modal-bg" id="modal-new-project">
+  <div class="modal">
+    <h3>Register new project</h3>
+    <p style="color:var(--text-dim);font-size:13px;margin-bottom:16px">Start with a concept or existing package. The platform will structure it and identify gaps.</p>
+    <div class="form-row"><label>Project name</label><input type="text" id="np-name" placeholder="e.g. District water treatment upgrade"></div>
+    <div class="form-row"><label>Sector</label>
+      <select id="np-sector"><option>Water & sanitation</option><option>Renewable energy</option><option>Transport / logistics</option><option>Municipal services</option><option>Climate adaptation</option></select>
+    </div>
+    <div class="form-row"><label>Current stage</label>
+      <select id="np-stage"><option value="concept">Concept</option><option value="feasibility">Feasibility</option><option value="structuring">Structuring</option><option value="transaction">Transaction</option></select>
+    </div>
+    <div class="form-row"><label>Indicative capex (local currency m)</label><input type="text" id="np-capex" placeholder="e.g. 420"></div>
+    <div class="form-row"><label>Description</label><textarea id="np-desc" rows="3" placeholder="Problem, beneficiaries, location…"></textarea></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('new-project')">Cancel</button>
+      <button class="btn btn-primary" onclick="createProject()">Create</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Engage -->
+<div class="modal-bg" id="modal-engage">
+  <div class="modal">
+    <h3 id="engage-title">Request engagement</h3>
+    <p style="color:var(--text-dim);font-size:13px;margin-bottom:16px" id="engage-desc">This begins the controlled workflow.</p>
+    <div class="form-row"><label>Action</label>
+      <select id="engage-action">
+        <option value="interest">Express interest (non-binding)</option>
+        <option value="nda">Request NDA & data-room access</option>
+        <option value="rfi">Submit request for information</option>
+      </select>
+    </div>
+    <div class="form-row"><label>Message (optional)</label><textarea id="engage-msg" rows="3" placeholder="Brief note…"></textarea></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('engage')">Cancel</button>
+      <button class="btn btn-primary" onclick="submitEngage()">Submit</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="modal-add-provider">
+  <div class="modal">
+    <h3>Add capital provider</h3>
+    <p style="color:var(--text-dim);font-size:13px;margin-bottom:16px">New records enter as “Mandate match” until verified.</p>
+    <div class="form-row"><label>Name</label><input type="text" id="ap-name" placeholder="e.g. Example Pension Fund"></div>
+    <div class="form-row"><label>Category</label><select id="ap-cat"></select></div>
+    <div class="form-row"><label>Instrument</label>
+      <select id="ap-type"><option>Equity</option><option>Commercial debt</option><option>Concessional debt</option><option>Grant / technical assistance</option><option>Project preparation</option><option>ECA / guarantee</option><option>Guarantee / risk</option></select>
+    </div>
+    <div class="form-row"><label>Ticket size</label><input type="text" id="ap-ticket" placeholder="e.g. USD 20m–150m"></div>
+    <div class="form-row"><label>Geographies (comma-separated)</label><input type="text" id="ap-geo" placeholder="Africa, South Africa"></div>
+    <div class="form-row"><label>Sectors (comma-separated)</label><input type="text" id="ap-sec" placeholder="Energy, Water, Transport"></div>
+    <div class="form-row"><label>Notes</label><textarea id="ap-desc" rows="2" placeholder="Mandate, appetite, constraints…"></textarea></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('add-provider')">Cancel</button>
+      <button class="btn btn-primary" onclick="addProvider()">Add</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   CORE DATA & STATE (condensed from v2)
+   ============================================================ */
+const $ = (s, el=document) => el.querySelector(s);
+const $$ = (s, el=document) => [...el.querySelectorAll(s)];
+const fmtM = n => (n/1e6).toFixed(1);
+
+let currentRole = 'borrower';
+let activeProjectId = 'p1';
+let engageTarget = null;
+let mapInitialized = false;
+let animationEnabled = false;
+let animationId = null;
+let particles = [];
+let focusedCountry = null;
+
+const CONF = {
+  verified:{label:'Verified current',cls:'b-verified'}, published:{label:'Published programme',cls:'b-published'},
+  open:{label:'Open funding call',cls:'b-open'}, precedent:{label:'Historical precedent',cls:'b-precedent'},
+  mandate:{label:'Mandate match',cls:'b-mandate'}, inferred:{label:'Inferred / analytical',cls:'b-inferred'},
+  interest:{label:'Interest expressed',cls:'b-interest'}, nda:{label:'NDA active',cls:'b-nda'}, terms:{label:'Terms discussion',cls:'b-terms'}
+};
+const badge = k => { const m = CONF[k]||CONF.inferred; return `<span class="badge ${m.cls}">${m.label}</span>`; };
+const STAGE_LABEL = {concept:'Concept',feasibility:'Feasibility',structuring:'Structuring',transaction:'Transaction',construction:'Construction',ops:'Operations'};
+
+const CAPITAL = [
+  {id:'c1',name:'DBSA Project Preparation Fund',type:'Project preparation',desc:'Preparation funding for municipal and regional infrastructure.',ticket:'R5m–R50m',currency:'ZAR',stages:['feasibility','structuring'],sectors:['Water','Energy','Transport'],confidence:'precedent',legal:'Available to SA municipalities; recoverable terms may apply.',source:'DBSA (illustrative)',verified:'2026-08-30',geographies:['South Africa']},
+  {id:'c2',name:'AfDB — Africa Water Facility',type:'Grant / technical assistance',desc:'Grants for water and sanitation project preparation.',ticket:'USD 0.5m–5m',currency:'USD',stages:['feasibility','structuring'],sectors:['Water','Sanitation'],confidence:'published',legal:'National endorsement required.',source:'AfDB (illustrative)',verified:'2026-09-14',geographies:['Africa']},
+  {id:'c3',name:'Green Climate Fund — PPF',type:'Grant / technical assistance',desc:'Preparation support for climate projects.',ticket:'Up to USD 1.5m',currency:'USD',stages:['feasibility'],sectors:['Water','Climate','Energy'],confidence:'open',legal:'Accredited entity required.',source:'GCF (illustrative)',verified:'2026-10-02',geographies:['Africa','Global']},
+  {id:'c4',name:'World Bank — IPF',type:'Concessional debt',desc:'Sovereign or sovereign-guaranteed lending for infrastructure.',ticket:'USD 20m–200m',currency:'USD',stages:['feasibility','construction'],sectors:['Water','Sanitation','Transport'],confidence:'mandate',legal:'Sovereign or guaranteed; municipal via on-lending.',source:'World Bank (illustrative)',verified:'2026-07-21',geographies:['Africa','Global']},
+  {id:'c5',name:'IFC — Upstream & Advisory',type:'Advisory (not capital)',desc:'Advisory to structure commercially viable projects.',ticket:'Case-by-case',currency:'—',stages:['structuring','transaction'],sectors:['Water','Energy','Transport'],confidence:'mandate',legal:'Requires path to commercial viability.',source:'IFC (illustrative)',verified:'2026-06-30',geographies:['Africa','Global']},
+  {id:'c6',name:'MIGA — Political Risk',type:'Guarantee / risk',desc:'Guarantees and PRI for cross-border investment.',ticket:'Case-by-case',currency:'Multi',stages:['construction','ops'],sectors:['Water','Energy','Transport'],confidence:'mandate',legal:'Structure-dependent for municipal relevance.',source:'MIGA (illustrative)',verified:'2026-05-18',geographies:['Africa','Global']},
+  {id:'c7',name:'UKEF — Buyer Credit',type:'ECA / guarantee',desc:'Export credit for UK goods and services.',ticket:'GBP 5m–200m',currency:'GBP',stages:['construction'],sectors:['Water','Energy','Transport'],confidence:'published',legal:'Export content rules; national approval for municipal borrowers.',source:'UKEF (illustrative)',verified:'2026-09-01',geographies:['Africa','Global']},
+  {id:'c8',name:'KfW — Concessional Loan',type:'Concessional debt',desc:'Below-market lending for water, climate and municipal infrastructure.',ticket:'EUR 10m–100m',currency:'EUR',stages:['construction'],sectors:['Water','Climate','Sanitation'],confidence:'published',legal:'Typically sovereign or national programme.',source:'KfW (illustrative)',verified:'2026-08-11',geographies:['Africa']},
+  {id:'c9',name:'National Treasury — BFI',type:'Grant / technical assistance',desc:'On-budget support for large infrastructure meeting readiness criteria.',ticket:'ZAR 50m–500m',currency:'ZAR',stages:['transaction','construction'],sectors:['Water','Energy','Transport','Health'],confidence:'published',legal:'Treasury appraisal; via sponsoring department.',source:'NT (illustrative)',verified:'2026-10-20',geographies:['South Africa']},
+  {id:'c10',name:'Commercial bank syndicate (ZAR)',type:'Commercial debt',desc:'Senior ZAR debt subject to credit assessment.',ticket:'ZAR 50m–500m',currency:'ZAR',stages:['construction','ops'],sectors:['Water','Energy','Transport'],confidence:'inferred',legal:'Credit assessment and security; may need provincial approval.',source:'Analytical',verified:'2026-11-01',geographies:['South Africa']},
+  {id:'c11',name:'Municipal Infrastructure Grant',type:'Grant / technical assistance',desc:'Conditional national grant for municipal infrastructure.',ticket:'ZAR 10m–100m',currency:'ZAR',stages:['concept','construction'],sectors:['Water','Sanitation','Roads'],confidence:'verified',legal:'Grant conditions and procurement rules apply.',source:'National framework (illustrative)',verified:'2026-09-25',geographies:['South Africa']},
+  {id:'c12',name:'PIDG — InfraCo / GuarantCo',type:'Guarantee / risk',desc:'Early-stage development and guarantees to mobilise private capital.',ticket:'USD 5m–50m',currency:'USD',stages:['structuring','transaction','construction'],sectors:['Energy','Transport','Water'],confidence:'published',legal:'Focus on pioneering projects.',source:'PIDG (illustrative)',verified:'2026-08-22',geographies:['Africa']},
+  {id:'c13',name:'Climate Fund Managers',type:'Equity',desc:'Development and construction equity for renewable energy.',ticket:'USD 10m–75m',currency:'USD',stages:['structuring','construction'],sectors:['Energy','Climate'],confidence:'published',legal:'Commercial structures; offtake material.',source:'CFM (illustrative)',verified:'2026-09-10',geographies:['Africa']},
+  {id:'c14',name:'AFD / Proparco',type:'Concessional debt',desc:'French development finance for sustainable infrastructure.',ticket:'EUR 10m–100m',currency:'EUR',stages:['feasibility','construction'],sectors:['Water','Energy','Climate'],confidence:'published',legal:'Sovereign and non-sovereign windows.',source:'AFD (illustrative)',verified:'2026-08-05',geographies:['Africa']},
+  {id:'c15',name:'DBSA — Lending',type:'Concessional debt',desc:'Infrastructure and municipal lending across SADC.',ticket:'ZAR/USD varied',currency:'Multi',stages:['construction'],sectors:['Water','Energy','Transport'],confidence:'published',legal:'Direct municipal lending within mandate.',source:'DBSA (illustrative)',verified:'2026-09-12',geographies:['South Africa','SADC']},
+  {id:'c16',name:'GCF — Funded projects',type:'Grant / technical assistance',desc:'Larger climate finance through accredited entities.',ticket:'USD 10m–250m',currency:'USD',stages:['construction'],sectors:['Climate','Energy','Water'],confidence:'published',legal:'AE and country programme alignment.',source:'GCF (illustrative)',verified:'2026-10-01',geographies:['Africa','Global']},
+  {id:'c17',name:'US DFC',type:'Commercial debt',desc:'US development finance debt and political risk insurance.',ticket:'USD 10m–500m',currency:'USD',stages:['construction'],sectors:['Energy','Transport','Water'],confidence:'mandate',legal:'US nexus and development impact criteria.',source:'DFC (illustrative)',verified:'2026-08-28',geographies:['Africa']},
+  {id:'c18',name:'GuarantCo',type:'Guarantee / risk',desc:'Local-currency and partial credit guarantees.',ticket:'USD 5m–50m',currency:'Multi',stages:['construction'],sectors:['Energy','Transport','Water'],confidence:'published',legal:'Local-currency solutions focus.',source:'GuarantCo (illustrative)',verified:'2026-09-03',geographies:['Africa']},
+  {id:'c19',name:'Africa50',type:'Equity',desc:'Project development and equity in African infrastructure.',ticket:'USD 20m–100m',currency:'USD',stages:['structuring','construction'],sectors:['Energy','Transport'],confidence:'mandate',legal:'Commercial equity; often co-invests with DFIs.',source:'Africa50 (illustrative)',verified:'2026-06-22',geographies:['Africa']},
+  {id:'c20',name:'EIB — Global / Africa',type:'Concessional debt',desc:'EIB lending and blending for infrastructure outside the EU.',ticket:'EUR 20m–200m',currency:'EUR',stages:['construction'],sectors:['Energy','Transport','Water','Climate'],confidence:'mandate',legal:'Often via sovereign or strong intermediaries.',source:'EIB (illustrative)',verified:'2026-07-18',geographies:['Africa']},
+  {id:'c21',name:'GIF — Project preparation',type:'Project preparation',desc:'Upstream project preparation support with MDBs.',ticket:'USD 0.5m–5m',currency:'USD',stages:['feasibility','structuring'],sectors:['Transport','Energy','Water'],confidence:'published',legal:'Typically via MDB partnership.',source:'GIF (illustrative)',verified:'2026-07-30',geographies:['Africa','Global']},
+  {id:'c22',name:'SACE (Italy) Export Credit',type:'ECA / guarantee',desc:'Italian export credit support.',ticket:'EUR 5m–150m',currency:'EUR',stages:['construction'],sectors:['Water','Energy','Transport'],confidence:'published',legal:'Export content and procurement rules.',source:'SACE (illustrative)',verified:'2026-06-15',geographies:['Africa','Global']},
+  {id:'c23',name:'Private credit fund (illustrative)',type:'Commercial debt',desc:'Senior/mezzanine private credit for contracted infrastructure cash flows.',ticket:'USD 20m–150m',currency:'USD',stages:['construction','ops'],sectors:['Energy','Transport','Water'],confidence:'inferred',legal:'Robust security package often required.',source:'Analytical',verified:'2026-11-05',geographies:['South Africa','Kenya']},
+  {id:'c24',name:'Standard Bank / local commercial',type:'Commercial debt',desc:'ZAR and multi-currency facilities for municipal and project borrowers.',ticket:'ZAR 30m–400m',currency:'ZAR',stages:['construction','ops'],sectors:['Water','Energy','Transport'],confidence:'inferred',legal:'MFMA constraints for municipalities.',source:'Analytical',verified:'2026-10-28',geographies:['South Africa']},
+  {id:'c25',name:'AIIB Infrastructure',type:'Concessional debt',desc:'Sustainable infrastructure financing.',ticket:'USD 50m–300m',currency:'USD',stages:['construction'],sectors:['Transport','Energy','Water'],confidence:'mandate',legal:'Membership and eligibility rules.',source:'AIIB (illustrative)',verified:'2026-07-05',geographies:['Africa','Global']},
+  {id:'c26',name:'Japan NEXI / JBIC',type:'ECA / guarantee',desc:'Japanese export credit and overseas investment support.',ticket:'USD/JPY significant',currency:'Multi',stages:['construction'],sectors:['Energy','Transport','Water'],confidence:'mandate',legal:'Often tied to Japanese content.',source:'NEXI/JBIC (illustrative)',verified:'2026-05-30',geographies:['Africa','Global']},
+  {id:'c27',name:'Kenya county climate funds',type:'Grant / technical assistance',desc:'County-level preparation and small infrastructure support.',ticket:'KES varied',currency:'KES',stages:['concept','feasibility','construction'],sectors:['Water','Climate'],confidence:'precedent',legal:'County fiscal rules apply.',source:'Illustrative',verified:'2026-04-20',geographies:['Kenya']},
+  {id:'c28',name:'Water sector support programme',type:'Grant / technical assistance',desc:'Technical assistance for water conservation and NRW reduction.',ticket:'ZAR 1m–20m',currency:'ZAR',stages:['concept','feasibility'],sectors:['Water'],confidence:'precedent',legal:'Programme-based; eligibility varies.',source:'Sector programme (illustrative)',verified:'2026-04-12',geographies:['South Africa']}
+];
+
+/* ---- Provider categories & expanded database ---- */
+const CATS=['DFI & multilateral lenders','Export credit agencies','Commercial banks & private credit','Private equity & infrastructure funds','Pension funds','Sovereign wealth funds','Family offices','Endowments & foundations','Insurers & asset managers','Climate & guarantee facilities','Grants & preparation facilities'];
+const CAT_BY_ID={c1:10,c2:10,c3:10,c4:0,c5:0,c6:9,c7:1,c8:0,c9:10,c10:2,c11:10,c12:9,c13:3,c14:0,c15:0,c16:9,c17:0,c18:9,c19:3,c20:0,c21:10,c22:1,c23:2,c24:2,c25:0,c26:1,c27:10,c28:10};
+CAPITAL.forEach(c=>{ c.category=CATS[CAT_BY_ID[c.id]]; });
+const CAT_DEF={
+  PE:{c:3,stg:['structuring','construction','ops'],legal:'Commercial returns required; needs contracted revenues and a bankable sponsor structure.',d:'Equity investor in infrastructure and energy platforms.'},
+  PEN:{c:4,stg:['construction','ops'],legal:'Fiduciary and regulatory limits apply; favours operating, inflation-linked or contracted assets.',d:'Long-dated institutional capital for operating infrastructure.'},
+  SWF:{c:5,stg:['transaction','construction'],legal:'Strategic or co-investment mandates; often alongside DFIs or sponsors.',d:'State-backed investor with long horizon and co-investment appetite.'},
+  FO:{c:6,stg:['structuring','construction'],legal:'Discretionary and relationship-led; smaller tickets, faster decisions.',d:'Private wealth investing directly or via funds in infrastructure and impact.'},
+  END:{c:7,stg:['concept','feasibility','structuring'],legal:'Mission-aligned; grants, programme-related investments or LP commitments to funds.',d:'Foundation or endowment capital — catalytic, grant or impact allocation.'},
+  INS:{c:8,stg:['construction','ops'],legal:'Solvency and asset-liability rules; prefers investment-grade or wrapped long-dated debt.',d:'Insurance and asset-management balance sheets for long-term infrastructure debt and equity.'},
+  DFI:{c:0,stg:['feasibility','structuring','construction'],legal:'Eligibility, safeguards and sovereign or sponsor requirements apply.',d:'Development finance institution lending and investing in infrastructure.'},
+  BANK:{c:2,stg:['construction','ops'],legal:'Credit assessment and security package required.',d:'Commercial lender to infrastructure and project borrowers.'},
+  GRT:{c:10,stg:['concept','feasibility'],legal:'Eligibility and application criteria apply.',d:'Preparation and catalytic grant funding.'}
+};
+// [name, cat, instrument, ticket, currency, geographies, sectors, evidence, archetype?]
+const NEW_ROWS=[
+ ['Actis','PE','Equity','USD 50m–300m','USD','Africa','Energy,Climate','mandate'],
+ ['Helios Investment Partners','PE','Equity','USD 50m–250m','USD','Africa','Energy,Transport','mandate'],
+ ['Brookfield Infrastructure','PE','Equity','USD 100m–1bn','USD','Global','Energy,Transport','mandate'],
+ ['Meridiam','PE','Equity','EUR 30m–300m','EUR','Africa,Global','Transport,Water,Energy','mandate'],
+ ['Macquarie Asset Management','PE','Equity','USD 100m–500m','Multi','Global','Energy,Transport','mandate'],
+ ['AIIM (Africa Infrastructure Investment Managers)','PE','Equity','USD 30m–150m','USD','Africa','Energy,Transport','mandate'],
+ ['BlackRock — Global Infrastructure Partners','PE','Equity','USD 150m–1bn','USD','Global','Energy,Transport','mandate'],
+ ['Public Investment Corporation (PIC)','PEN','Equity','ZAR 200m–5bn','ZAR','South Africa,SADC','Energy,Transport,Water','mandate'],
+ ['Government Employees Pension Fund (via PIC)','PEN','Commercial debt','ZAR 500m–5bn','ZAR','South Africa','Energy,Transport,Water','inferred'],
+ ['CDPQ','PEN','Equity','USD 100m–1bn','Multi','Global','Transport,Energy','mandate'],
+ ['CPP Investments','PEN','Equity','USD 100m–1bn','Multi','Global','Energy,Transport','mandate'],
+ ['OMERS Infrastructure','PEN','Equity','USD 100m–500m','Multi','Global','Energy,Transport,Water','mandate'],
+ ['Ontario Teachers’ Pension Plan','PEN','Equity','USD 100m–1bn','Multi','Global','Transport,Energy','mandate'],
+ ['APG / PGGM (Dutch pension managers)','PEN','Commercial debt','EUR 50m–500m','EUR','Global','Energy,Climate','mandate'],
+ ['Kenya NSSF / pension schemes','PEN','Equity','KES varied','KES','Kenya','Transport,Energy','inferred'],
+ ['West African pension funds (PenCom-regulated)','PEN','Commercial debt','USD 10m–100m eq.','Multi','Africa','Energy,Transport','inferred'],
+ ['Mubadala','SWF','Equity','USD 100m–1bn','USD','Global,Africa','Energy,Transport','mandate'],
+ ['ADQ','SWF','Equity','USD 100m–1bn','USD','Global,Africa','Energy,Transport','mandate'],
+ ['Public Investment Fund (PIF)','SWF','Equity','USD 100m–1bn','USD','Global','Energy,Transport','mandate'],
+ ['GIC','SWF','Equity','USD 100m–1bn','USD','Global','Energy,Transport','mandate'],
+ ['Temasek','SWF','Equity','USD 100m–1bn','USD','Global','Energy,Climate','mandate'],
+ ['Qatar Investment Authority','SWF','Equity','USD 100m–1bn','USD','Global','Energy,Transport','mandate'],
+ ['Nigeria Sovereign Investment Authority (NSIA)','SWF','Equity','USD 20m–200m','USD','Africa','Energy,Transport,Health','mandate'],
+ ['Ghana Infrastructure Investment Fund (GIIF)','SWF','Equity','USD 10m–100m','USD','Africa','Energy,Transport,Water','mandate'],
+ ['FONSIS (Senegal)','SWF','Equity','USD 10m–100m','USD','Africa','Energy,Transport','inferred'],
+ ['Heirs Holdings','FO','Equity','USD 10m–100m','USD','Africa','Energy','mandate'],
+ ['Gulf family office (archetype)','FO','Equity','USD 10m–100m','USD','Africa,Global','Energy,Transport','inferred'],
+ ['European multi-family office (archetype)','FO','Equity','EUR 5m–50m','EUR','Africa,Global','Energy,Climate,Water','inferred'],
+ ['Asian family office (archetype)','FO','Equity','USD 10m–100m','USD','Africa,Global','Energy,Transport','inferred'],
+ ['Impact-focused single-family office (archetype)','FO','Equity','USD 1m–25m','USD','Africa','Water,Climate,Energy','inferred'],
+ ['Rockefeller Foundation','END','Grant / technical assistance','USD 1m–20m','USD','Africa,Global','Energy,Climate','mandate'],
+ ['Gates Foundation','END','Grant / technical assistance','USD 1m–50m','USD','Africa,Global','Sanitation,Health,Water','mandate'],
+ ['Mastercard Foundation','END','Grant / technical assistance','USD 1m–30m','USD','Africa','Energy,Health','mandate'],
+ ['Bloomberg Philanthropies','END','Grant / technical assistance','USD 1m–20m','USD','Global','Climate,Transport','mandate'],
+ ['CIFF (Children’s Investment Fund Foundation)','END','Grant / technical assistance','USD 1m–25m','USD','Africa,Global','Climate,Health','mandate'],
+ ['University endowment (archetype)','END','Equity','USD 10m–100m','USD','Global','Energy,Climate','inferred'],
+ ['Old Mutual Alternative Investments','INS','Equity','ZAR 100m–1bn','ZAR','South Africa,Africa','Energy,Transport,Water','mandate'],
+ ['Sanlam Investments','INS','Commercial debt','ZAR 100m–1bn','ZAR','South Africa,Africa','Energy,Transport','mandate'],
+ ['Ninety One','INS','Equity','USD 20m–200m','USD','Africa,Global','Energy,Climate','mandate'],
+ ['Global insurer — infrastructure debt desk (archetype)','INS','Commercial debt','USD 50m–300m','USD','Global','Energy,Transport','inferred'],
+ ['Norfund','DFI','Equity','USD 10m–100m','USD','Africa','Energy,Climate','published'],
+ ['FMO','DFI','Concessional debt','USD 10m–100m','USD','Africa,Global','Energy,Water,Transport','published'],
+ ['British International Investment (BII)','DFI','Equity','USD 10m–150m','USD','Africa','Energy,Transport,Water','published'],
+ ['DEG (Germany)','DFI','Concessional debt','EUR 10m–100m','EUR','Africa,Global','Energy,Water','published'],
+ ['Swedfund / Finnfund','DFI','Equity','EUR 5m–50m','EUR','Africa','Energy,Climate','published'],
+ ['Africa Finance Corporation (AFC)','DFI','Concessional debt','USD 20m–300m','USD','Africa','Energy,Transport','published'],
+ ['Trade & Development Bank (TDB)','DFI','Commercial debt','USD 10m–150m','USD','Africa','Transport,Energy','published'],
+ ['Standard Bank CIB','BANK','Commercial debt','ZAR 100m–2bn','Multi','Africa,South Africa','Energy,Transport,Water','mandate'],
+ ['Absa CIB','BANK','Commercial debt','ZAR 100m–2bn','Multi','Africa,South Africa','Energy,Transport','mandate'],
+ ['Nedbank CIB','BANK','Commercial debt','ZAR 100m–1.5bn','ZAR','South Africa','Energy,Water,Transport','mandate'],
+ ['RMB (FirstRand)','BANK','Commercial debt','ZAR 100m–1.5bn','Multi','Africa,South Africa','Energy,Transport','mandate']
+];
+NEW_ROWS.forEach((r,i)=>{
+  const D=CAT_DEF[r[1]];
+  CAPITAL.push({id:'c'+(29+i),name:r[0],category:CATS[D.c],type:r[2],desc:D.d,ticket:r[3],currency:r[4],stages:D.stg,sectors:r[6].split(','),confidence:r[7],legal:D.legal,source:r[0].includes('archetype')?'Archetype — analytical (not a named institution)':'Public profile (illustrative) — verify before use',verified:'2026-11-20',geographies:r[5].split(',')});
+});
+function initCategoryControls(){
+  ['#cap-cat','#match-cat','#ap-cat'].forEach(sel=>{ const el=$(sel); if(!el) return;
+    if(sel!=='#ap-cat') el.innerHTML='<option value="all">All categories</option>';
+    el.innerHTML+=CATS.map(k=>`<option>${k}</option>`).join('');
+    if(sel!=='#ap-cat'){ el.addEventListener('change',()=>{ renderCapital(); renderMatches(); }); } });
+}
+function addProvider(){
+  const name=$('#ap-name').value.trim(); if(!name){ alert('Please enter a name.'); return; }
+  const list=s=>s.split(',').map(x=>x.trim()).filter(Boolean);
+  const cat=$('#ap-cat').value, ci=CATS.indexOf(cat);
+  const D=Object.values(CAT_DEF).find(d=>d.c===ci)||CAT_DEF.PE;
+  CAPITAL.push({id:'c'+(CAPITAL.length+1)+'u',name,category:cat,type:$('#ap-type').value,desc:$('#ap-desc').value||D.d,ticket:$('#ap-ticket').value||'Case-by-case',currency:'Multi',stages:D.stg,sectors:list($('#ap-sec').value).length?list($('#ap-sec').value):['Energy'],confidence:'mandate',legal:D.legal,source:'User-submitted — pending verification',verified:'2026-11-20',geographies:list($('#ap-geo').value).length?list($('#ap-geo').value):['Africa']});
+  closeModal('add-provider'); ['ap-name','ap-ticket','ap-geo','ap-sec','ap-desc'].forEach(id=>$('#'+id).value='');
+  renderCapital(); renderMatches();
+}
+function csvEsc(v){ v=String(v??''); return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v; }
+function exportCapitalCSV(){
+  const cols=['name','category','type','ticket','currency','geographies','sectors','stages','description','eligibility','source'];
+  const rows=CAPITAL.map(c=>[c.name,c.category,c.type,c.ticket,c.currency,c.geographies.join('; '),c.sectors.join('; '),c.stages.join('; '),c.desc,c.legal,c.source].map(csvEsc).join(','));
+  const blob=new Blob([[cols.join(','),...rows].join('\n')],{type:'text/csv'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='capital_providers.csv'; a.click();
+}
+function parseCSV(t){ const out=[];let row=[],f='',q=false;
+  for(let i=0;i<t.length;i++){ const ch=t[i];
+    if(q){ if(ch==='"'&&t[i+1]==='"'){f+='"';i++;} else if(ch==='"')q=false; else f+=ch; }
+    else if(ch==='"')q=true; else if(ch===','){row.push(f);f='';}
+    else if(ch==='\n'||ch==='\r'){ if(ch==='\r'&&t[i+1]==='\n')i++; row.push(f);f=''; if(row.some(x=>x.trim()))out.push(row); row=[]; }
+    else f+=ch; }
+  if(f||row.length){row.push(f);out.push(row);} return out; }
+function importCapitalCSV(inp){
+  const file=inp.files[0]; if(!file) return;
+  const rd=new FileReader();
+  rd.onload=()=>{
+    const rows=parseCSV(rd.result); const head=rows.shift().map(h=>h.trim().toLowerCase());
+    const g=(r,k)=>(r[head.indexOf(k)]||'').trim(); const list=s=>s.split(/[;,]/).map(x=>x.trim()).filter(Boolean);
+    let n=0;
+    rows.forEach(r=>{ const name=g(r,'name'); if(!name) return;
+      const cat=CATS.includes(g(r,'category'))?g(r,'category'):CATS[3]; const D=Object.values(CAT_DEF).find(d=>d.c===CATS.indexOf(cat))||CAT_DEF.PE;
+      const stg=list(g(r,'stages')).filter(s=>STAGE_LABEL[s]);
+      CAPITAL.push({id:'c'+(CAPITAL.length+1)+'i',name,category:cat,type:g(r,'type')||'Equity',desc:g(r,'description')||D.d,ticket:g(r,'ticket')||'Case-by-case',currency:g(r,'currency')||'Multi',stages:stg.length?stg:D.stg,sectors:list(g(r,'sectors')).length?list(g(r,'sectors')):['Energy'],confidence:'mandate',legal:g(r,'eligibility')||D.legal,source:g(r,'source')||'CSV import — pending verification',verified:'2026-11-20',geographies:list(g(r,'geographies')).length?list(g(r,'geographies')):['Africa']}); n++; });
+    inp.value=''; renderCapital(); renderMatches(); alert(n+' providers imported (session memory).');
+  };
+  rd.readAsText(file);
+}
+
+const PROJECTS = {
+  p1:{id:'p1',name:'Water Treatment Plant Upgrade & NRW Reduction',sector:'Water & sanitation',jurisdiction:'South Africa — Local Municipality',stage:'feasibility',capex:420e6,currency:'ZAR',updated:'2026-11-18',readiness:42,desc:'Upgrade of existing works and non-revenue water reduction. Limited engineering and finance capacity.',
+    stages:[
+      {name:'Concept & identification',key:'concept',status:'complete',activities:['Needs assessment','Preliminary options','Site identification','Institutional mapping'],outputs:'Concept note completed. Basic demand estimate exists.'},
+      {name:'Pre-feasibility & feasibility',key:'feasibility',status:'active',activities:['Technical studies','Demand analysis','E&S screening','Financial model','Legal feasibility'],outputs:'Required: full feasibility study and independent water audit.'},
+      {name:'Structuring & bankability',key:'structuring',status:'pending',activities:['Delivery model options','Risk allocation','Bankability gap analysis','Procurement strategy'],outputs:'Structuring report, risk register, tariff study.'},
+      {name:'Transaction & close',key:'transaction',status:'pending',activities:['Lender engagement','Due diligence','Conditions precedent'],outputs:'Data room, IM, signed agreements.'},
+      {name:'Construction',key:'construction',status:'pending',activities:['Construction & commissioning','Owner’s engineer','Disbursement tracking'],outputs:'Implementation dashboard.'},
+      {name:'Operations',key:'ops',status:'pending',activities:['O&M','Revenue collection','Refinancing'],outputs:'Operating performance.'}
+    ],
+    gaps:[
+      {gap:'No feasibility study',severity:'critical',stage:'Feasibility',remedy:'Commission via DBSA PPF / AfDB AWF',status:'Open'},
+      {gap:'Water-loss baseline unverified',severity:'high',stage:'Feasibility',remedy:'Independent water audit',status:'Open'},
+      {gap:'E&S screening not done',severity:'high',stage:'Feasibility',remedy:'E&S to DFI standards',status:'Open'},
+      {gap:'Tariff model outdated',severity:'high',stage:'Structuring',remedy:'Tariff & affordability study',status:'Open'},
+      {gap:'Borrowing headroom unconfirmed',severity:'critical',stage:'Concept',remedy:'Legal & fiscal check',status:'In progress'},
+      {gap:'Revenue collection at 78%',severity:'medium',stage:'Structuring',remedy:'Revenue enhancement plan',status:'Open'}
+    ]},
+  p2:{id:'p2',name:'Regional Solar + Storage Programme',sector:'Renewable energy',jurisdiction:'South Africa — Provincial',stage:'structuring',capex:1800e6,currency:'ZAR',updated:'2026-11-12',readiness:68,desc:'Portfolio of solar PV with storage. Grid connection and offtake under discussion.',stages:[],gaps:[]},
+  p3:{id:'p3',name:'Secondary City BRT Corridor',sector:'Transport / logistics',jurisdiction:'South Africa — Local Municipality',stage:'concept',capex:950e6,currency:'ZAR',updated:'2026-10-30',readiness:22,desc:'BRT corridor linking industrial zone and residential areas. Early concept.',stages:[],gaps:[]}
+};
+
+const ENGAGEMENTS = {
+  'p1-c1':{status:'interest',date:'2026-11-10',note:'Interested in PPF application support'},
+  'p1-c2':{status:'nda',date:'2026-11-14',note:'NDA executed; data room opened'},
+  'p1-c9':{status:'interest',date:'2026-11-08'}
+};
+
+const LEGAL_STATUS = {prohibition:{label:'Express prohibition',cls:'b-inferred'},conditional:{label:'Conditional authority',cls:'b-precedent'},approval:{label:'Admin approval required',cls:'b-published'},allowed:{label:'Generally permitted',cls:'b-verified'},unsettled:{label:'Unsettled',cls:'b-inferred'}};
+const LEGAL_BY_JURISDICTION = {
+  'za-muni':{summary:'Long-term borrowing for capital expenditure is conditionally permitted under MFMA. Foreign-currency borrowing and guarantees face tighter constraints.',
+    rules:[
+      {q:'Borrowing for capital expenditure',status:'conditional',cite:'MFMA 56 of 2003, ss 46–48',note:'Long-term debt only for capital expenditure; council resolution and affordability assessment required.',reviewed:'2026-10-15'},
+      {q:'Foreign-currency borrowing',status:'approval',cite:'MFMA s 48 + NT guidance',note:'National Treasury approval and FX risk management required.',reviewed:'2026-10-15'},
+      {q:'Public-private partnerships',status:'conditional',cite:'MFMA s 33; TR 16',note:'PPP feasibility and Treasury approval stages apply.',reviewed:'2026-10-15'},
+      {q:'Guarantees by municipality',status:'prohibition',cite:'MFMA s 50',note:'May not guarantee debt of other entities except where expressly permitted.',reviewed:'2026-10-15'},
+      {q:'Pledging project revenue',status:'conditional',cite:'MFMA regulations',note:'Security arrangements limited; enforcement rights constrained.',reviewed:'2026-10-15'},
+      {q:'Debt ceilings / affordability',status:'approval',cite:'NT circulars',note:'Debt-service ratios inform approval.',reviewed:'2026-10-15'}
+    ]},
+  'za-metro':{summary:'Metros have broader capacity but MFMA and NT oversight still apply.',rules:[{q:'Borrowing for capital expenditure',status:'conditional',cite:'MFMA ss 46–48',note:'Same core framework; often stronger credit histories.',reviewed:'2026-10-15'}]},
+  'za-nat':{summary:'National borrowing governed by PFMA and debt management framework.',rules:[{q:'Sovereign borrowing',status:'conditional',cite:'PFMA',note:'Subject to fiscal framework and debt sustainability.',reviewed:'2026-10-15'}]},
+  'drc-prov':{summary:'Provincial borrowing in DRC is constrained; central involvement typically required. Full legal mapping needed before live use.',rules:[{q:'Provincial borrowing',status:'unsettled',cite:'To be mapped',note:'Prototype placeholder.',reviewed:'2026-11-01'}]},
+  'ke-county':{summary:'County borrowing under Kenyan PFMA, subject to national oversight.',rules:[{q:'County borrowing',status:'conditional',cite:'PFMA Kenya',note:'County assembly approval and fiscal responsibility principles.',reviewed:'2026-09-20'}]},
+  'zm-muni':{summary:'Zambian local authority borrowing — confirm current circulars with counsel.',rules:[{q:'Local authority borrowing',status:'conditional',cite:'To be mapped',note:'Prototype coverage limited.',reviewed:'2026-11-01'}]}
+};
+
+const SCENARIOS = [
+  {id:'A',name:'DFI concessional (ZAR)',desc:'Single ZAR concessional DFI loan.',components:[{label:'DFI loan',amount:420e6,rate:0.08,years:15,grace:3,ccy:'ZAR',fl:0.5}],legal:'Subject to municipal approval and affordability.',time:'9–15 months'},
+  {id:'B',name:'Blended (grant + concessional + commercial)',desc:'R120m grant, R200m concessional, R100m commercial.',components:[{label:'Grant',amount:120e6,rate:0,years:0,grace:0,ccy:'ZAR',grant:true},{label:'Concessional',amount:200e6,rate:0.065,years:18,grace:3,ccy:'ZAR',fl:0.5},{label:'Commercial',amount:100e6,rate:0.11,years:10,grace:1,ccy:'ZAR',fl:1}],legal:'Grant requires eligible criteria. Strong analytical candidate.',time:'12–18 months',recommended:true},
+  {id:'C',name:'Commercial only',desc:'Full commercial bank debt.',components:[{label:'Commercial',amount:420e6,rate:0.115,years:10,grace:1,ccy:'ZAR',fl:1}],legal:'Compatible but may breach affordability norms.',time:'6–9 months'},
+  {id:'D',name:'ECA + commercial',desc:'R180m ECA (USD) + R240m ZAR commercial.',components:[{label:'ECA USD',amount:180e6,rate:0.085,years:12,grace:2,ccy:'USD',fl:0.25},{label:'Commercial ZAR',amount:240e6,rate:0.11,years:10,grace:1,ccy:'ZAR',fl:1}],legal:'ECA export-content rules; municipal approval required.',time:'9–14 months'}
+];
+
+function annuity(p,r,n){ if(n<=0)return 0; if(r===0)return p/n; return p*r/(1-Math.pow(1+r,-n)); }
+function computeScenario(sc,shock=0,bps=0){
+  let annual=0,total=0,fxExposed=0,debt=0,grant=0,interest=0;
+  sc.components.forEach(c=>{
+    if(c.grant){grant+=c.amount;return;}
+    const usd=c.ccy!=='ZAR';
+    const amt=c.amount*(usd?1+shock/100:1);
+    const rate=c.rate+(c.fl||0)*bps/10000;
+    debt+=amt; if(usd)fxExposed+=amt;
+    const g=c.grace||0, n=c.years-g;
+    const io=amt*rate*g, ann=annuity(amt,rate,n);
+    annual+=ann; total+=io+ann*n; interest+=io+ann*n-amt;
+  });
+  return {annual,total,fxExposed,debt,grant,interest};
+}
+
+const FLOW_INSTRUMENTS = [
+  {name:'Commercial / private debt',pct:28,color:'#e8c36a'},{name:'DFI / MDB concessional',pct:24,color:'#2dd4bf'},
+  {name:'Equity & infra funds',pct:14,color:'#60a5fa'},{name:'ECA-backed',pct:11,color:'#a78bfa'},
+  {name:'Grants & preparation',pct:8,color:'#34d399'},{name:'Guarantees / risk',pct:7,color:'#c084fc'},
+  {name:'Other / blended',pct:8,color:'#64748b'}
+];
+const FLOW_DRIVERS = [
+  {title:'Project preparation quality',text:'Completed feasibility, clear offtake and clean E&S screening attract broader capital and better terms.'},
+  {title:'Legal predictability',text:'Lenders allocate to jurisdictions where security and dispute resolution are reliable.'},
+  {title:'Currency & convertibility',text:'Hard-currency debt creates risk for local-revenue projects. Local-currency solutions improve bankability.'},
+  {title:'Sovereign / sub-sovereign support',text:'Guarantees and on-lending expand the lender universe but create contingent liabilities.'},
+  {title:'Sector track record',text:'Power and some transport have deeper track records than water or social infrastructure.'},
+  {title:'Blended finance availability',text:'Grant or concessional layers can crowd in commercial capital that would otherwise stay away.'}
+];
+const TRANSACTIONS = [
+  {project:'Utility-scale solar',country:'South Africa',providers:'DFIs + commercial + ECA',structure:'Project finance',amount:'~$400m',year:'2023',status:'Closed'},
+  {project:'Port expansion',country:'Kenya',providers:'MDB + syndicate',structure:'Sovereign / hybrid',amount:'~$280m',year:'2022',status:'Closed'},
+  {project:'Municipal water bulk',country:'South Africa',providers:'DBSA + commercial',structure:'Municipal loan + grant',amount:'R1.1bn',year:'2024',status:'Closed'},
+  {project:'Transmission line',country:'Zambia',providers:'MDB + bilateral',structure:'Sovereign guaranteed',amount:'~$180m',year:'2021',status:'Closed'},
+  {project:'BRT Phase 2',country:'Ghana',providers:'MDB + climate fund',structure:'Blended',amount:'~$220m',year:'2023',status:'Implementation'},
+  {project:'Mini-grid programme',country:'DRC',providers:'Climate fund + DFI',structure:'Results-based + equity',amount:'~$60m',year:'2024',status:'Preparation'},
+  {project:'NRW programme',country:'Kenya',providers:'AFD + grant',structure:'Concessional + TA',amount:'€45m',year:'2022',status:'Closed'},
+  {project:'Airport terminal',country:'Senegal',providers:'ECA + commercial',structure:'Buyer credit',amount:'~$350m',year:'2020',status:'Closed'}
+];
+
+function scoreMatch(project, capital){
+  let score=40;
+  if(capital.stages.includes(project.stage)) score+=25;
+  const sec=project.sector.toLowerCase();
+  if(capital.sectors.some(s=>sec.includes(s.toLowerCase())||(s.toLowerCase().includes('water')&&sec.includes('water')))) score+=15;
+  if(capital.geographies.some(g=>['Africa','Global','South Africa','SADC'].includes(g))) score+=10;
+  if(['verified','open'].includes(capital.confidence)) score+=8;
+  if(capital.confidence==='published') score+=5;
+  if(project.stage==='feasibility'&&(capital.type.includes('Grant')||capital.type.includes('preparation'))) score+=10;
+  return Math.min(98,score);
+}
+
+/* ============================================================
+   TABS
+   ============================================================ */
+const TABS_BORROWER = [
+  {id:'overview',label:'Overview'},{id:'projects',label:'My projects'},{id:'workspace',label:'Workspace'},
+  {id:'legal',label:'Legal & fiscal'},{id:'scenarios',label:'Scenarios'},{id:'matches',label:'Matches'},
+  {id:'dealroom',label:'Deal rooms'},{id:'capital',label:'Capital explorer'},{id:'flows',label:'Flows'},
+  {id:'map',label:'Flows map'},{id:'guide',label:'User guide'}
+];
+const TABS_PROVIDER = [
+  {id:'overview',label:'Overview'},{id:'mandate',label:'My mandate'},{id:'opps',label:'Opportunities'},
+  {id:'pipeline',label:'Pipeline'},{id:'dealroom',label:'Deal rooms'},{id:'capital',label:'Capital explorer'},
+  {id:'flows',label:'Flows'},{id:'map',label:'Flows map'},{id:'guide',label:'User guide'}
+];
+
+function renderTabs(){
+  const tabs = currentRole==='borrower'?TABS_BORROWER:TABS_PROVIDER;
+  const nav = $('#main-tabs') || document.querySelector('nav.tabs');
+  const active = $('.tab.active');
+  const currentView = active ? active.dataset.view : 'overview';
+  nav.innerHTML = tabs.map(t =>
+    `<button class="tab ${t.id===currentView||(!tabs.find(x=>x.id===currentView)&&t.id==='overview')?'active':''}" data-view="${t.id}">${t.label}</button>`
+  ).join('');
+  $$('.tab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      $$('.tab').forEach(b=>b.classList.remove('active'));
+      $$('.view').forEach(v=>v.classList.remove('active'));
+      btn.classList.add('active');
+      const view = document.getElementById('view-'+btn.dataset.view);
+      if(view) view.classList.add('active');
+      window.scrollTo({top:0,behavior:'smooth'});
+      const v = btn.dataset.view;
+      if(v==='workspace') renderWorkspace();
+      if(v==='matches') renderMatches();
+      if(v==='dealroom') renderDealrooms();
+      if(v==='opps') renderOpps();
+      if(v==='pipeline') renderPipeline();
+      if(v==='legal') renderLegal();
+      if(v==='projects') renderProjectList();
+      if(v==='map') initFlowMap();
+      if(v==='capital') renderCapital();
+      if(v==='flows') renderFlows();
+      if(v==='scenarios') renderScenarios();
+    });
+  });
+}
+
+/* ============================================================
+   RENDERERS
+   ============================================================ */
+function renderProjectList(){
+  $('#project-list').innerHTML = Object.values(PROJECTS).map(p=>`
+    <article class="card">
+      <div class="project-top">
+        <div><h3 style="font-size:15px">${p.name}</h3>
+        <p style="font-size:12px;color:var(--text-muted);margin:2px 0 0">${p.jurisdiction} · ${p.sector}</p></div>
+        <div class="match-score ${p.readiness>=70?'high':p.readiness>=45?'med':'low'}">${p.readiness}</div>
+      </div>
+      <p style="font-size:13px;color:var(--text-dim);margin:10px 0">${p.desc}</p>
+      <dl class="mini">
+        <div><dt>Stage</dt><dd>${STAGE_LABEL[p.stage]}</dd></div>
+        <div><dt>Capex</dt><dd>${p.currency==='ZAR'?'R':''}${fmtM(p.capex)}m</dd></div>
+        <div><dt>Updated</dt><dd>${p.updated}</dd></div>
+      </dl>
+      <div class="btn-row">
+        <button class="btn btn-primary btn-sm" onclick="openWorkspace('${p.id}')">Open workspace</button>
+        <button class="btn btn-secondary btn-sm" onclick="activeProjectId='${p.id}';document.querySelector('[data-view=matches]')?.click()">View matches</button>
+      </div>
+    </article>
+  `).join('');
+}
+
+function openWorkspace(id){
+  activeProjectId=id;
+  $$('.tab').forEach(b=>b.classList.remove('active'));
+  $$('.view').forEach(v=>v.classList.remove('active'));
+  const tab=document.querySelector('[data-view=workspace]');
+  if(tab) tab.classList.add('active');
+  $('#view-workspace').classList.add('active');
+  renderWorkspace();
+}
+
+let activeStageIdx=1;
+function renderWorkspace(){
+  const p=PROJECTS[activeProjectId]; if(!p) return;
+  $('#workspace-header').innerHTML=`
+    <div class="card" style="margin-bottom:16px">
+      <div style="display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap">
+        <div>
+          <span class="badge b-inferred" style="margin-bottom:8px">Illustrative project</span>
+          <h2 style="font-size:18px;margin:0 0 4px">${p.name}</h2>
+          <p style="font-size:12.5px;color:var(--text-muted);margin:0">${p.jurisdiction} · ${p.sector} · ${p.currency==='ZAR'?'R':''}${fmtM(p.capex)}m · ${p.updated}</p>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase">Stage</div>
+          <div style="font-size:16px;font-weight:700;color:var(--teal)">${STAGE_LABEL[p.stage]}</div>
+          <div style="font-size:12px;color:var(--text-muted)">Readiness ${p.readiness}/100</div>
+        </div>
+      </div>
+    </div>`;
+  const stages=p.stages.length?p.stages:[
+    {name:'Concept',key:'concept',status:p.stage==='concept'?'active':'complete',activities:['Needs definition'],outputs:'Concept captured.'},
+    {name:'Feasibility',key:'feasibility',status:p.stage==='feasibility'?'active':'pending',activities:['Studies'],outputs:'—'},
+    {name:'Structuring',key:'structuring',status:p.stage==='structuring'?'active':'pending',activities:['Structuring'],outputs:'—'},
+    {name:'Transaction',key:'transaction',status:'pending',activities:['Transaction'],outputs:'—'},
+    {name:'Construction',key:'construction',status:'pending',activities:['Build'],outputs:'—'},
+    {name:'Operations',key:'ops',status:'pending',activities:['Operate'],outputs:'—'}
+  ];
+  activeStageIdx=Math.max(0,stages.findIndex(s=>s.status==='active'));
+  $('#stepper').innerHTML=stages.map((s,i)=>`
+    <button class="step ${s.status} ${i===activeStageIdx?'active':''}" data-stage="${i}">
+      <span class="num">${String(i+1).padStart(2,'0')}</span>
+      <span class="lbl">${s.name}</span>
+      <span class="st">${s.status==='complete'?'Complete':s.status==='active'?'In progress':'Not started'}</span>
+    </button>`).join('');
+  $$('#stepper .step').forEach(b=>b.addEventListener('click',()=>{activeStageIdx=+b.dataset.stage;renderWorkspace();}));
+  const s=stages[activeStageIdx];
+  $('#stage-title').textContent=`Stage ${activeStageIdx+1}: ${s.name}`;
+  $('#stage-activities').innerHTML=(s.activities||[]).map(a=>`<li><span class="tick">›</span><span>${a}</span></li>`).join('')||'<li style="color:var(--text-muted)">No detail in prototype</li>';
+  $('#stage-outputs').innerHTML=`<h4>Output status</h4><p>${s.outputs||'—'}</p>`;
+  const matches=CAPITAL.filter(c=>c.stages.includes(s.key||p.stage)).slice(0,4);
+  $('#stage-funding').innerHTML=matches.length?matches.map(c=>`
+    <div style="border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:8px">
+      <div style="display:flex;justify-content:space-between;gap:8px"><strong style="font-size:13px">${c.name}</strong>${badge(c.confidence)}</div>
+      <div style="font-size:12px;color:var(--text-muted);margin:4px 0">${c.type} · ${c.ticket}</div>
+      <div style="font-size:12px;color:var(--text-dim)">${c.legal}</div>
+    </div>`).join(''):'<p style="color:var(--text-muted);font-size:13px">No matches for this stage.</p>';
+  const gaps=p.gaps||[];
+  $('#gap-body').innerHTML=gaps.length?gaps.map(g=>`<tr>
+    <td><strong>${g.gap}</strong></td><td><span class="sev ${g.severity}">${g.severity}</span></td>
+    <td>${g.stage}</td><td>${g.remedy}</td><td style="font-size:12px">${g.status||'Open'}</td>
+  </tr>`).join(''):'<tr><td colspan="5" style="color:var(--text-muted)">No gaps registered.</td></tr>';
+}
+
+function renderLegal(){
+  const j=$('#jurisdiction').value;
+  const data=LEGAL_BY_JURISDICTION[j]||LEGAL_BY_JURISDICTION['za-muni'];
+  $('#legal-summary-text').textContent=data.summary;
+  $('#legal-body').innerHTML=data.rules.map(r=>{
+    const s=LEGAL_STATUS[r.status]||LEGAL_STATUS.unsettled;
+    return `<tr><td><strong>${r.q}</strong></td><td><span class="badge ${s.cls}">${s.label}</span></td>
+      <td><div style="font-size:12px;color:var(--text-muted);margin-bottom:3px">${r.cite}</div>${r.note}</td>
+      <td style="font-size:12px;color:var(--text-muted)">${r.reviewed}</td></tr>`;
+  }).join('');
+}
+
+function renderScenarios(){
+  const shock=+$('#fx-slider').value, bps=+$('#rate-slider').value;
+  $('#fx-value').textContent=shock+'%';
+  $('#rate-value').textContent='+'+bps+' bps';
+  const rows=SCENARIOS.map(sc=>({sc,base:computeScenario(sc,0,0),st:computeScenario(sc,shock,bps)}));
+  const cheapest=rows.reduce((m,r)=>r.st.total<m.st.total?r:m,rows[0]).sc.id;
+  const pct=(a,b)=>b?((a-b)/b*100):0;
+  $('#scenario-grid').innerHTML=rows.map(({sc,base,st})=>{
+    const dA=st.annual-base.annual, dT=st.total-base.total;
+    const fxShare=st.debt?(st.fxExposed/st.debt)*100:0;
+    const cls=d=>d>0.5e3?'neg':'';
+    const sign=d=>d>0.5e3?'+':'';
+    return `<article class="card scenario ${sc.recommended?'recommended':''}">
+      ${sc.recommended?'<span class="rec">Analytical recommendation</span>':''}
+      <h3 style="font-size:14.5px;margin:0">Scenario ${sc.id} — ${sc.name}${sc.id===cheapest?' <span class="badge b-verified" style="margin-left:6px">Lowest total cost</span>':''}</h3>
+      <p style="font-size:12.5px;color:var(--text-muted);margin:4px 0">${sc.desc}</p>
+      <div class="metrics">
+        <div><span class="k">Annual service (post-grace)</span><span class="v ${cls(dA)}">R${fmtM(st.annual)}m</span><span style="display:block;font-size:11px;color:var(--text-muted)">Base R${fmtM(base.annual)}m · ${sign(dA)}R${fmtM(dA)}m (${sign(dA)}${pct(st.annual,base.annual).toFixed(1)}%)</span></div>
+        <div><span class="k">Total debt service</span><span class="v ${cls(dT)}">R${fmtM(st.total)}m</span><span style="display:block;font-size:11px;color:var(--text-muted)">Base R${fmtM(base.total)}m · ${sign(dT)}R${fmtM(dT)}m (${sign(dT)}${pct(st.total,base.total).toFixed(1)}%)</span></div>
+        <div><span class="k">Debt outstanding (stressed)</span><span class="v">R${fmtM(st.debt)}m</span><span style="display:block;font-size:11px;color:var(--text-muted)">Base R${fmtM(base.debt)}m</span></div>
+        <div><span class="k">Interest cost (life of loan)</span><span class="v">R${fmtM(st.interest)}m</span><span style="display:block;font-size:11px;color:var(--text-muted)">Base R${fmtM(base.interest)}m</span></div>
+        <div><span class="k">FX-exposed debt</span><span class="v">R${fmtM(st.fxExposed)}m · ${fxShare.toFixed(0)}%</span><span style="display:block;font-size:11px;color:var(--text-muted)">${st.fxExposed?'Grows with depreciation':'All ZAR — no FX pass-through'}</span></div>
+        <div><span class="k">Grant element</span><span class="v">R${fmtM(st.grant)}m</span><span style="display:block;font-size:11px;color:var(--text-muted)">Not affected by stress</span></div>
+        <div><span class="k">Time to close</span><span class="v" style="font-size:13px">${sc.time}</span></div>
+      </div>
+      <p class="legal-note"><strong>Legal:</strong> ${sc.legal}</p>
+      <p class="source">${badge('inferred')} Illustration · fees excluded · stress: +${shock}% FX, +${bps} bps</p>
+    </article>`;
+  }).join('');
+}
+
+function renderMatches(){
+  const p=PROJECTS[activeProjectId]; if(!p){$('#match-grid').innerHTML='<p style="color:var(--text-muted)">Select a project first.</p>';return;}
+  const q=($('#match-search')?.value||'').trim().toLowerCase();
+  const type=$('#match-type')?.value||'all';
+  const minScore=+($('#match-score-filter')?.value||0);
+  const statusF=$('#match-status')?.value||'all';
+  let list=CAPITAL.map(c=>{
+    const score=scoreMatch(p,c); const eng=ENGAGEMENTS[`${p.id}-${c.id}`]||{status:'none'};
+    return {...c,score,engStatus:eng.status||'none',eng};
+  }).filter(c=>{
+    const hay=(c.name+' '+c.desc+' '+c.type+' '+(c.category||'')).toLowerCase();
+    const cat=$('#match-cat')?.value||'all';
+    return (!q||hay.includes(q))&&(cat==='all'||c.category===cat)&&(type==='all'||c.type===type)&&c.score>=minScore&&(statusF==='all'||c.engStatus===statusF);
+  }).sort((a,b)=>b.score-a.score);
+  $('#match-count').textContent=`${list.length} matches · illustrative fit scores`;
+  $('#match-grid').innerHTML=list.map(c=>`
+    <article class="card">
+      <div class="provider-top">
+        <div style="display:flex;gap:12px;align-items:flex-start">
+          <div class="match-score ${c.score>=80?'high':c.score>=60?'med':'low'}">${c.score}</div>
+          <div><span class="cat-tag">${c.category}</span><h3 style="font-size:14.5px">${c.name}</h3><p style="font-size:12px;color:var(--text-muted);margin:0">${c.type}</p></div>
+        </div>
+        <div>${badge(c.confidence)}${c.engStatus!=='none'?' '+badge(c.engStatus):''}</div>
+      </div>
+      <p style="font-size:13px;color:var(--text-dim);margin:10px 0 6px">${c.desc}</p>
+      <div class="chips">${c.stages.map(s=>`<span class="chip">${STAGE_LABEL[s]}</span>`).join('')}</div>
+      <dl class="mini">
+        <div><dt>Ticket</dt><dd>${c.ticket}</dd></div>
+        <div><dt>Currency</dt><dd>${c.currency}</dd></div>
+        <div><dt>Sectors</dt><dd>${c.sectors.slice(0,3).join(', ')}</dd></div>
+      </dl>
+      <p class="legal-note"><strong>Eligibility:</strong> ${c.legal}</p>
+      <div class="btn-row">
+        ${c.engStatus==='none'?`<button class="btn btn-primary btn-sm" onclick="openEngage('${c.id}','${c.name}')">Express interest</button>`:''}
+        ${c.engStatus==='interest'?`<button class="btn btn-primary btn-sm" onclick="openEngage('${c.id}','${c.name}')">Request NDA</button>`:''}
+        ${c.engStatus==='nda'?`<button class="btn btn-secondary btn-sm" onclick="document.querySelector('[data-view=dealroom]')?.click()">Open deal room</button>`:''}
+      </div>
+      <p class="source">Source: ${c.source} · ${c.verified}</p>
+    </article>`).join('');
+}
+
+let capCatFilter='all';
+function renderCapital(){
+  const q=($('#cap-search')?.value||'').trim().toLowerCase();
+  const type=$('#cap-type')?.value||'all'; const stg=$('#cap-stage')?.value||'all'; const conf=$('#cap-conf')?.value||'all';
+  capCatFilter=$('#cap-cat')?.value||'all';
+  const list=CAPITAL.filter(c=>{
+    const hay=(c.name+' '+c.desc+' '+c.type+' '+c.category+' '+c.sectors.join(' ')+' '+c.geographies.join(' ')).toLowerCase();
+    return (!q||hay.includes(q))&&(capCatFilter==='all'||c.category===capCatFilter)&&(type==='all'||c.type===type)&&(stg==='all'||c.stages.includes(stg))&&(conf==='all'||c.confidence===conf);
+  });
+  $('#cap-count').textContent=`${list.length} of ${CAPITAL.length} providers · illustrative`;
+  const hf=$('#hero-facilities'); if(hf) hf.textContent=CAPITAL.length;
+  $('#cat-tiles').innerHTML=`<button class="cat-tile ${capCatFilter==='all'?'active':''}" onclick="setCapCat('all')"><span class="n">${CAPITAL.length}</span><span class="l">All providers</span></button>`+
+    CATS.map(k=>`<button class="cat-tile ${capCatFilter===k?'active':''}" onclick="setCapCat('${k.replace(/'/g,"\\'")}')"><span class="n">${CAPITAL.filter(c=>c.category===k).length}</span><span class="l">${k}</span></button>`).join('');
+  $('#cap-grid').innerHTML=list.map(c=>`
+    <article class="card">
+      <div class="provider-top"><div><span class="cat-tag">${c.category}</span><h3 style="font-size:14.5px">${c.name}</h3><p style="font-size:12px;color:var(--text-muted);margin:0">${c.type}</p></div>${badge(c.confidence)}</div>
+      <p style="font-size:13px;color:var(--text-dim);margin:10px 0 6px">${c.desc}</p>
+      <div class="chips">${c.stages.map(s=>`<span class="chip">${STAGE_LABEL[s]||s}</span>`).join('')}</div>
+      <dl class="mini"><div><dt>Ticket</dt><dd>${c.ticket}</dd></div><div><dt>Currency</dt><dd>${c.currency}</dd></div><div><dt>Sectors</dt><dd>${c.sectors.join(', ')}</dd></div></dl>
+      <p class="legal-note"><strong>Eligibility:</strong> ${c.legal}</p>
+      <p class="source">Source: ${c.source} · ${c.verified}</p>
+    </article>`).join('');
+}
+function setCapCat(k){ const el=$('#cap-cat'); if(el) el.value=k; renderCapital(); }
+
+function renderFlows(){
+  $('#flow-instruments').innerHTML=FLOW_INSTRUMENTS.map(f=>`
+    <div style="margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px"><span>${f.name}</span><strong>${f.pct}%</strong></div>
+      <div style="height:6px;background:rgba(255,255,255,0.06);border-radius:3px;overflow:hidden"><div style="width:${f.pct}%;height:100%;background:${f.color};border-radius:3px"></div></div>
+    </div>`).join('');
+  $('#flow-drivers').innerHTML=FLOW_DRIVERS.map(d=>`<div class="card"><h3 style="font-size:13.5px;margin-bottom:6px">${d.title}</h3><p style="font-size:12.5px;color:var(--text-muted);margin:0">${d.text}</p></div>`).join('');
+  $('#txn-body').innerHTML=TRANSACTIONS.map(t=>`<tr>
+    <td><strong>${t.project}</strong></td><td>${t.country}</td><td style="font-size:12px">${t.providers}</td>
+    <td style="font-size:12px">${t.structure}</td><td>${t.amount}</td><td>${t.year}</td>
+    <td><span class="badge ${t.status==='Closed'?'b-verified':t.status==='Implementation'?'b-published':'b-precedent'}">${t.status}</span></td>
+  </tr>`).join('');
+}
+
+function renderDealrooms(){
+  const rooms=[];
+  Object.entries(ENGAGEMENTS).forEach(([key,eng])=>{
+    if(eng.status==='none')return;
+    const [pid,cid]=key.split('-'); const p=PROJECTS[pid]; const c=CAPITAL.find(x=>x.id===cid);
+    if(p&&c) rooms.push({project:p,capital:c,eng});
+  });
+  if(!rooms.length){$('#dealroom-list').innerHTML=`<div class="card empty-state"><h3>No active deal rooms</h3><p>Express interest from Matches to open an engagement.</p></div>`;return;}
+  $('#dealroom-list').innerHTML=rooms.map(r=>`
+    <div class="card" style="margin-bottom:14px">
+      <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap">
+        <div><h3 style="font-size:15px">${r.project.name}</h3>
+        <p style="font-size:12.5px;color:var(--text-muted);margin:2px 0 0">Counterparty: <strong>${r.capital.name}</strong></p></div>
+        ${badge(r.eng.status)}
+      </div>
+      <div class="timeline" style="margin-top:14px">
+        <div class="timeline-item"><strong style="font-size:13px">Interest expressed</strong><div style="font-size:12px;color:var(--text-muted)">${r.eng.date||'—'} · ${r.eng.note||''}</div></div>
+        <div class="timeline-item ${r.eng.status==='nda'||r.eng.status==='terms'?'':'pending'}"><strong style="font-size:13px">NDA / data room</strong><div style="font-size:12px;color:var(--text-muted)">${r.eng.status==='nda'||r.eng.status==='terms'?'Active':'Pending'}</div></div>
+        <div class="timeline-item pending"><strong style="font-size:13px">Terms</strong><div style="font-size:12px;color:var(--text-muted)">Not yet</div></div>
+        <div class="timeline-item pending"><strong style="font-size:13px">Close</strong><div style="font-size:12px;color:var(--text-muted)">Not yet</div></div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary btn-sm">Open data room</button>
+        <button class="btn btn-secondary btn-sm">Q&A log</button>
+        <button class="btn btn-ghost btn-sm">Audit trail</button>
+      </div>
+    </div>`).join('');
+}
+
+function renderOpps(){
+  const q=($('#opp-search')?.value||'').trim().toLowerCase();
+  const country=$('#opp-country')?.value||'all'; const stage=$('#opp-stage')?.value||'all'; const minR=+($('#opp-ready')?.value||0);
+  const list=Object.values(PROJECTS).filter(p=>{
+    const hay=(p.name+' '+p.sector+' '+p.jurisdiction).toLowerCase();
+    return (!q||hay.includes(q))&&(country==='all'||p.jurisdiction.includes(country))&&(stage==='all'||p.stage===stage)&&p.readiness>=minR;
+  });
+  $('#opp-count').textContent=`${list.length} opportunities · illustrative`;
+  $('#opp-grid').innerHTML=list.map(p=>`
+    <article class="card">
+      <div class="project-top">
+        <div><h3 style="font-size:14.5px">${p.name}</h3><p style="font-size:12px;color:var(--text-muted);margin:2px 0 0">${p.jurisdiction} · ${p.sector}</p></div>
+        <div class="match-score ${p.readiness>=70?'high':p.readiness>=45?'med':'low'}">${p.readiness}</div>
+      </div>
+      <p style="font-size:13px;color:var(--text-dim);margin:10px 0">${p.desc}</p>
+      <dl class="mini"><div><dt>Stage</dt><dd>${STAGE_LABEL[p.stage]}</dd></div><div><dt>Capex</dt><dd>${p.currency==='ZAR'?'R':''}${fmtM(p.capex)}m</dd></div><div><dt>Updated</dt><dd>${p.updated}</dd></div></dl>
+      <div class="btn-row">
+        <button class="btn btn-primary btn-sm" onclick="openEngageProvider('${p.id}','${p.name}')">Express interest</button>
+        <button class="btn btn-secondary btn-sm">Request info</button>
+      </div>
+    </article>`).join('')||'<div class="card empty-state"><h3>No matching opportunities</h3><p>Adjust filters.</p></div>';
+}
+
+function renderPipeline(){
+  const items=Object.entries(ENGAGEMENTS).filter(([,e])=>e.status!=='none');
+  if(!items.length){$('#pipeline-list').innerHTML=`<div class="card empty-state"><h3>Pipeline empty</h3><p>Express interest on opportunities to populate.</p></div>`;return;}
+  $('#pipeline-list').innerHTML=items.map(([key,eng])=>{
+    const [pid,cid]=key.split('-'); const p=PROJECTS[pid]; const c=CAPITAL.find(x=>x.id===cid);
+    return `<div class="card" style="margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;gap:12px">
+        <div><h3 style="font-size:14.5px">${p?p.name:pid}</h3>
+        <p style="font-size:12px;color:var(--text-muted);margin:2px 0 0">${c?c.name:cid} · ${eng.date||''}</p></div>
+        ${badge(eng.status)}
+      </div>
+      <p style="font-size:13px;color:var(--text-dim);margin:8px 0 0">${eng.note||''}</p>
+    </div>`;
+  }).join('');
+}
+
+/* ============================================================
+   MAP — static arcs, optional animation
+   ============================================================ */
+const FLOW_DATA = [
+  {from:'USA',to:'South Africa',vol:420,type:'dfi'},{from:'USA',to:'Kenya',vol:310,type:'dfi'},
+  {from:'USA',to:'Nigeria',vol:280,type:'commercial'},{from:'GBR',to:'South Africa',vol:260,type:'commercial'},
+  {from:'GBR',to:'Kenya',vol:180,type:'dfi'},{from:'GBR',to:'Ghana',vol:140,type:'eca'},
+  {from:'DEU',to:'South Africa',vol:240,type:'dfi'},{from:'DEU',to:'Kenya',vol:160,type:'dfi'},
+  {from:'DEU',to:'Zambia',vol:95,type:'grant'},{from:'FRA',to:'Senegal',vol:210,type:'dfi'},
+  {from:'FRA',to:"Côte d'Ivoire",vol:170,type:'dfi'},{from:'FRA',to:'Morocco',vol:190,type:'commercial'},
+  {from:'CHN',to:'Ethiopia',vol:380,type:'commercial'},{from:'CHN',to:'Kenya',vol:290,type:'commercial'},
+  {from:'CHN',to:'Nigeria',vol:220,type:'commercial'},{from:'CHN',to:'Zambia',vol:150,type:'commercial'},
+  {from:'JPN',to:'Kenya',vol:130,type:'eca'},{from:'JPN',to:'South Africa',vol:110,type:'eca'},
+  {from:'NLD',to:'South Africa',vol:90,type:'dfi'},{from:'SWE',to:'Kenya',vol:70,type:'grant'},
+  {from:'ARE',to:'Egypt',vol:200,type:'commercial'},{from:'ZAF',to:'Zambia',vol:55,type:'dfi'},
+  {from:'ZAF',to:'Mozambique',vol:48,type:'dfi'},{from:'ZAF',to:'DRC',vol:40,type:'commercial'},
+  {from:'USA',to:'Ghana',vol:160,type:'dfi'},{from:'GBR',to:'Nigeria',vol:195,type:'commercial'},
+  {from:'CHN',to:'Angola',vol:310,type:'commercial'},{from:'USA',to:'DRC',vol:110,type:'dfi'},
+  {from:'FRA',to:'DRC',vol:85,type:'dfi'},{from:'CHN',to:'DRC',vol:240,type:'commercial'},
+  {from:'USA',to:'Senegal',vol:95,type:'dfi'},{from:'DEU',to:'Ghana',vol:80,type:'dfi'},
+  {from:'USA',to:'Ethiopia',vol:140,type:'grant'},{from:'JPN',to:'Mozambique',vol:90,type:'eca'}
+];
+const CENTROIDS = {
+  'USA':[-98,39],'GBR':[-2,54],'DEU':[10,51],'FRA':[2,46],'CHN':[104,35],'JPN':[138,36],
+  'NLD':[5,52],'SWE':[15,62],'ARE':[54,24],'ZAF':[25,-29],'South Africa':[25,-29],
+  'Kenya':[38,0.5],'Nigeria':[8,10],'Ghana':[-1,8],'Zambia':[28,-14],'Senegal':[-14,14],
+  "Côte d'Ivoire":[-5,8],'Morocco':[-6,32],'Ethiopia':[40,9],'Egypt':[30,27],
+  'Mozambique':[35,-18],'DRC':[24,-3],'Angola':[18,-12]
+};
+const TYPE_COLOR = {dfi:'#2dd4bf',commercial:'#e8c36a',eca:'#a78bfa',grant:'#34d399'};
+let mapSvg, mapProjection, mapPath;
+const NAME_TO_KEY={'United States of America':'USA','United Kingdom':'GBR','Germany':'DEU','France':'FRA','China':'CHN','Japan':'JPN','Netherlands':'NLD','Sweden':'SWE','United Arab Emirates':'ARE','South Africa':'ZAF','Dem. Rep. Congo':'DRC'};
+const keyOf=n=>NAME_TO_KEY[n]||n;
+
+function initFlowMap(){
+  if(mapInitialized){ return; }
+  mapInitialized=true;
+  const container=$('#map-wrap');
+  const width=container.clientWidth||1100;
+  const height=580;
+  mapSvg=d3.select('#flow-map').attr('viewBox',`0 0 ${width} ${height}`).attr('preserveAspectRatio','xMidYMid meet');
+  mapProjection=d3.geoNaturalEarth1().scale(width/5.8).translate([width/2, height/2+10]);
+  mapPath=d3.geoPath().projection(mapProjection);
+
+  d3.json('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json').then(world=>{
+    const countries=topojson.feature(world, world.objects.countries);
+    mapSvg.append('path').datum(d3.geoGraticule()()).attr('d',mapPath)
+      .attr('fill','none').attr('stroke','rgba(255,255,255,0.04)').attr('stroke-width',0.5);
+    mapSvg.append('g').attr('class','countries').selectAll('path')
+      .data(countries.features).join('path')
+      .attr('class','country').attr('d',mapPath)
+      .on('click',(event,d)=>{
+        const name=d.properties.name;
+        focusCountry(keyOf(name), name);
+      })
+      .on('mousemove',(event,d)=>{
+        const tip=$('#map-tooltip'); tip.style.display='block';
+        tip.style.left=(event.offsetX+14)+'px'; tip.style.top=(event.offsetY+14)+'px';
+        tip.innerHTML=`<strong>${d.properties.name}</strong><br><span style="opacity:.7">Click to focus flows</span>`;
+      })
+      .on('mouseleave',()=>{$('#map-tooltip').style.display='none';});
+    const hubs=new Set(); FLOW_DATA.forEach(f=>{hubs.add(f.from==='South Africa'?'ZAF':f.from);hubs.add(f.to==='South Africa'?'ZAF':f.to);});
+    const hg=mapSvg.append('g').attr('class','hubs');
+    hubs.forEach(k=>{const c=CENTROIDS[k]; if(!c) return; const p=mapProjection(c); if(p) hg.append('circle').attr('class','hub-dot').attr('cx',p[0]).attr('cy',p[1]).attr('r',2.6);});
+    drawArcs(null);
+  }).catch(()=>{
+    mapSvg.append('text').attr('x',width/2).attr('y',height/2).attr('text-anchor','middle')
+      .attr('fill','#5c6f86').text('Unable to load map data (CDN required).');
+  });
+}
+
+function arcPath(from,to){
+  const a=CENTROIDS[from], b=CENTROIDS[to]; if(!a||!b) return null;
+  const s=mapProjection(a), t=mapProjection(b); if(!s||!t) return null;
+  const dx=t[0]-s[0], dy=t[1]-s[1], dr=Math.sqrt(dx*dx+dy*dy)*1.5;
+  const sweep=s[0]<t[0]?1:0;
+  return `M${s[0]},${s[1]}A${dr},${dr} 0 0,${sweep} ${t[0]},${t[1]}`;
+}
+
+function drawArcs(filterCountry=null){
+  mapSvg.selectAll('.arcs').remove();
+  mapSvg.selectAll('.particles').remove();
+  particles=[];
+  const hint=$('#map-empty-hint'); if(hint) hint.style.display=filterCountry?'none':'block';
+  const arcs=FLOW_DATA.filter(f=>{
+    if(!filterCountry) return false;
+    return f.from===filterCountry||f.to===filterCountry||
+      (filterCountry==='ZAF'&&(f.from==='South Africa'||f.to==='South Africa'));
+  });
+  const g=mapSvg.append('g').attr('class','arcs');
+  arcs.forEach(f=>{
+    const d=arcPath(f.from,f.to); if(!d) return;
+    const color=TYPE_COLOR[f.type]||'#64748b';
+    const width=Math.max(1.2, Math.min(4.5, f.vol/90));
+    const pathEl=g.append('path').attr('class','flow-arc').attr('d',d)
+      .attr('stroke',color).attr('stroke-width',width)
+      .on('mousemove',function(event){
+        const tip=$('#map-tooltip'); tip.style.display='block';
+        tip.style.left=(event.offsetX+14)+'px'; tip.style.top=(event.offsetY+14)+'px';
+        tip.innerHTML=`<strong>${f.from} → ${f.to}</strong><br>~$ ${f.vol}m · ${f.type}`;
+      })
+      .on('mouseleave',()=>{$('#map-tooltip').style.display='none';});
+    if(animationEnabled){
+      const node=pathEl.node();
+      if(node){
+        const len=node.getTotalLength();
+        const count=Math.max(1, Math.round(f.vol/150));
+        for(let p=0;p<count;p++){
+          particles.push({path:node,length:len,offset:Math.random(),speed:0.0018+Math.random()*0.001,color,r:1.6+(f.vol/350)});
+        }
+      }
+    }
+  });
+  mapSvg.selectAll('.country').classed('dimmed',false).classed('focused',false);
+  if(filterCountry){
+    mapSvg.selectAll('.country').classed('dimmed',true);
+    mapSvg.selectAll('.country').each(function(d){
+      if(keyOf(d.properties.name)===filterCountry) d3.select(this).classed('dimmed',false).classed('focused',true);
+    });
+  }
+  if(animationEnabled && particles.length) startParticles();
+  else stopParticles();
+}
+
+function startParticles(){
+  stopParticles();
+  const g=mapSvg.append('g').attr('class','particles');
+  function tick(){
+    g.selectAll('circle').remove();
+    particles.forEach(p=>{
+      p.offset+=p.speed; if(p.offset>1) p.offset-=1;
+      const pt=p.path.getPointAtLength(p.offset*p.length);
+      g.append('circle').attr('cx',pt.x).attr('cy',pt.y).attr('r',p.r).attr('fill',p.color).attr('opacity',0.85);
+    });
+    animationId=requestAnimationFrame(tick);
+  }
+  tick();
+}
+function stopParticles(){
+  if(animationId){ cancelAnimationFrame(animationId); animationId=null; }
+  mapSvg?.selectAll('.particles').remove();
+}
+function toggleAnimation(){
+  animationEnabled=!animationEnabled;
+  $('#anim-toggle').textContent=animationEnabled?'Disable animation':'Enable animation';
+  drawArcs(focusedCountry);
+}
+function focusCountry(key, displayName){
+  focusedCountry=key;
+  drawArcs(key);
+  const panel=$('#map-side-panel'); panel.style.display='block';
+  $('#panel-country').textContent=displayName||key;
+  const outbound=FLOW_DATA.filter(f=>f.from===key||(key==='ZAF'&&f.from==='South Africa'));
+  const inbound=FLOW_DATA.filter(f=>f.to===key||(key==='ZAF'&&f.to==='South Africa'));
+  const outVol=outbound.reduce((s,f)=>s+f.vol,0);
+  const inVol=inbound.reduce((s,f)=>s+f.vol,0);
+  $('#panel-summary').innerHTML=`Outbound: <strong>$${outVol}m</strong><br>Inbound: <strong>$${inVol}m</strong><br><span style="opacity:.6">Synthesised prototype data</span>`;
+  $('#panel-out').innerHTML=outbound.length?outbound.sort((a,b)=>b.vol-a.vol).map(f=>
+    `<div class="flow-row"><span>→ ${f.to}</span><span style="color:${TYPE_COLOR[f.type]}">$${f.vol}m</span></div>`).join(''):'<div style="font-size:12px;color:var(--text-muted)">None in sample</div>';
+  $('#panel-in').innerHTML=inbound.length?inbound.sort((a,b)=>b.vol-a.vol).map(f=>
+    `<div class="flow-row"><span>${f.from} →</span><span style="color:${TYPE_COLOR[f.type]}">$${f.vol}m</span></div>`).join(''):'<div style="font-size:12px;color:var(--text-muted)">None in sample</div>';
+}
+function clearMapFocus(){
+  focusedCountry=null; drawArcs(null);
+  $('#map-side-panel').style.display='none';
+}
+
+/* ============================================================
+   AI WIZARD
+   ============================================================ */
+const AI_RESPONSES = {
+  start:`As a borrower, start here:
+1. Go to <strong>My projects</strong> and register your project (even a simple concept).
+2. Open the <strong>Workspace</strong> to see your stage and bankability gaps.
+3. Check <strong>Legal & fiscal</strong> for your jurisdiction — confirm you have authority to borrow.
+4. Review <strong>Matches</strong> for stage-appropriate capital (preparation grants matter early).
+5. Express interest or request an NDA when ready to engage.
+
+Would you like me to walk you through any of these steps?`,
+  provider:`As a capital provider:
+1. Set your <strong>Mandate</strong> — instruments, stages, geographies, ticket size.
+2. Browse <strong>Opportunities</strong> filtered to your preferences.
+3. Review project readiness scores and legal status before engaging.
+4. Express interest; once the borrower accepts, move into a <strong>Deal room</strong> under NDA.
+
+The platform surfaces African projects that fit your mandate — you control visibility and engagement pace.`,
+  legal:`The legal authority check answers: who may borrow, from whom, in what currency, with whose approval, and under what limits.
+
+It distinguishes express prohibition, conditional authority, administrative approval, and unsettled interpretation. Every rule cites a source and review date.
+
+<strong>Important:</strong> This is decision support, not a legal opinion. Complex or uncertain issues should be referred to local counsel.`,
+  map:`The Flows map shows illustrative capital routes into and within African markets.
+
+• No arcs are shown until you act.
+• Click a country to reveal its inbound and outbound arcs and open a detail panel.
+• Use “Enable animation” only if you want particles travelling along arcs.
+• Hover an arc for volume and instrument type.
+
+All volumes are synthesised for product evaluation.`,
+  stage:`For feasibility / preparation stage, prioritise:
+• <strong>Project preparation facilities</strong> (e.g. DBSA PPF, GIF)
+• <strong>Grants and technical assistance</strong> (AfDB Water Facility, GCF PPF)
+• Some concessional windows that fund studies
+
+Construction debt and most commercial capital are usually premature until feasibility and bankability gaps are closed. Use the Workspace stage view and Matches filters to focus on preparation sources.`
+};
+
+function toggleAI(){
+  $('#ai-panel').classList.toggle('open');
+}
+function aiRespond(key){
+  const body=$('#ai-body');
+  const text=AI_RESPONSES[key]||'I can help with borrower onboarding, capital provider setup, legal checks, the flows map, stage-specific funding, and deal-room workflow. What would you like to know?';
+  body.innerHTML+=`<div class="ai-msg bot">${text}</div>`;
+  body.innerHTML+=`<div class="ai-suggestions">
+    <button class="ai-sug" onclick="aiRespond('start')">Borrower start guide</button>
+    <button class="ai-sug" onclick="aiRespond('provider')">Provider start guide</button>
+    <button class="ai-sug" onclick="aiRespond('legal')">Legal check explained</button>
+    <button class="ai-sug" onclick="aiRespond('map')">Flows map help</button>
+    <button class="ai-sug" onclick="aiRespond('stage')">Feasibility-stage funding</button>
+  </div>`;
+  body.scrollTop=body.scrollHeight;
+}
+function aiAsk(){
+  const input=$('#ai-input'); const q=input.value.trim(); if(!q) return;
+  const body=$('#ai-body');
+  body.innerHTML+=`<div class="ai-msg user">${q}</div>`;
+  input.value='';
+  // Simple keyword routing
+  const lower=q.toLowerCase();
+  let key='';
+  if(lower.includes('borrow')||lower.includes('start')||lower.includes('project')) key='start';
+  else if(lower.includes('provider')||lower.includes('investor')||lower.includes('mandate')) key='provider';
+  else if(lower.includes('legal')||lower.includes('borrow authority')||lower.includes('mfma')) key='legal';
+  else if(lower.includes('map')||lower.includes('flow')||lower.includes('arc')) key='map';
+  else if(lower.includes('feasibility')||lower.includes('preparation')||lower.includes('stage')) key='stage';
+  setTimeout(()=>{
+    if(key) aiRespond(key);
+    else {
+      body.innerHTML+=`<div class="ai-msg bot">I can guide you on borrower onboarding, capital provider setup, legal authority checks, the flows map, stage-specific funding, matching, and deal rooms. Try one of the suggestions below, or rephrase your question around those topics.</div>`;
+      body.innerHTML+=`<div class="ai-suggestions">
+        <button class="ai-sug" onclick="aiRespond('start')">Borrower start guide</button>
+        <button class="ai-sug" onclick="aiRespond('provider')">Provider start guide</button>
+        <button class="ai-sug" onclick="aiRespond('legal')">Legal check</button>
+        <button class="ai-sug" onclick="aiRespond('map')">Flows map</button>
+        <button class="ai-sug" onclick="aiRespond('stage')">Feasibility funding</button>
+      </div>`;
+      body.scrollTop=body.scrollHeight;
+    }
+  },400);
+}
+
+/* ============================================================
+   TUTORIAL
+   ============================================================ */
+const TUTORIAL_STEPS = [
+  {title:'Welcome to Capital Intelligence', body:`<p>This infrastructure funding platform connects government borrowers with global capital — stage by stage — with legal authority checks and end-to-end engagement workflow.</p><p>It is <strong>not</strong> a directory. It is a capital strategist and transaction workspace backed by a growing database of providers across eleven capital categories.</p>`},
+  {title:'Two sides, one platform', body:`<p>Use the <strong>Borrower / Capital provider</strong> switch in the header. Tabs and tools change to match your role.</p><ul><li><strong>Borrowers</strong> register projects, check legal authority, see stage-matched capital, and engage funders.</li><li><strong>Providers</strong> set mandates, discover African opportunities, and progress deals under NDA.</li></ul>`},
+  {title:'Legal authority first', body:`<p>Before matching capital, the platform checks whether your entity can lawfully borrow, take foreign-currency risk, grant security, or enter PPPs.</p><p>Every rule is cited and status-labelled. Treat this as decision support — not a legal opinion.</p>`},
+  {title:'Stage-aware matching', body:`<p>Capital is tagged by project stage. Preparation grants and facilities are first-class — not an afterthought.</p><p>Use the Workspace and Matches views to find funding for the <em>next</em> stage, not only construction finance.</p>`},
+  {title:'Map, AI guide & next steps', body:`<p>The <strong>Flows map</strong> shows illustrative capital routes — click a country to reveal its arcs.</p><p>The <strong>✦ AI Guide</strong> (bottom-right) answers common questions and suggests next actions.</p><p>Open the <strong>User guide</strong> tab anytime for a full walkthrough.</p>`}
+];
+let tutStep=0;
+function openTutorial(){
+  tutStep=0; renderTutorial();
+  $('#tutorial').classList.add('open');
+}
+function closeTutorial(){ $('#tutorial').classList.remove('open'); }
+function nextTutorial(){
+  if(tutStep>=TUTORIAL_STEPS.length-1){ closeTutorial(); return; }
+  tutStep++; renderTutorial();
+}
+function renderTutorial(){
+  const s=TUTORIAL_STEPS[tutStep];
+  $('#tut-step-label').textContent=`Step ${tutStep+1} of ${TUTORIAL_STEPS.length}`;
+  $('#tut-title').textContent=s.title;
+  $('#tut-body').innerHTML=s.body;
+  $('#tut-dots').innerHTML=TUTORIAL_STEPS.map((_,i)=>`<span class="${i===tutStep?'active':''}"></span>`).join('');
+  $('#tut-next').textContent=tutStep>=TUTORIAL_STEPS.length-1?'Get started':'Continue';
+  $('#tut-skip').style.display=tutStep>=TUTORIAL_STEPS.length-1?'none':'inline-flex';
+}
+
+/* ============================================================
+   MODALS & ACTIONS
+   ============================================================ */
+function openModal(id){ document.getElementById('modal-'+id).classList.add('open'); }
+function closeModal(id){ document.getElementById('modal-'+id).classList.remove('open'); }
+function openEngage(capId,capName){
+  engageTarget={type:'capital',id:capId,name:capName};
+  $('#engage-title').textContent='Engage: '+capName;
+  $('#engage-desc').textContent='Logged action. NDA requests notify the counterparty before data-room access.';
+  openModal('engage');
+}
+function openEngageProvider(projId,projName){
+  engageTarget={type:'project',id:projId,name:projName};
+  $('#engage-title').textContent='Interest: '+projName;
+  $('#engage-desc').textContent='The project owner will be notified.';
+  openModal('engage');
+}
+function submitEngage(){
+  const action=$('#engage-action').value;
+  if(engageTarget?.type==='capital'){
+    const key=`${activeProjectId}-${engageTarget.id}`;
+    ENGAGEMENTS[key]={status:action==='nda'?'nda':'interest',date:'2026-11-20',note:$('#engage-msg').value||(action==='nda'?'NDA requested':'Interest expressed')};
+  }
+  closeModal('engage');
+  alert('Action recorded in prototype session.');
+  renderMatches(); renderDealrooms();
+}
+function createProject(){
+  const name=$('#np-name').value||'Untitled project';
+  const id='p'+(Object.keys(PROJECTS).length+1);
+  PROJECTS[id]={id,name,sector:$('#np-sector').value,jurisdiction:$('#jurisdiction').selectedOptions[0].text,
+    stage:$('#np-stage').value,capex:(parseFloat($('#np-capex').value)||100)*1e6,currency:'ZAR',
+    updated:'2026-11-20',readiness:15,desc:$('#np-desc').value||'New concept.',stages:[],gaps:[]};
+  closeModal('new-project'); activeProjectId=id; renderProjectList();
+  alert('Project created in session memory.');
+}
+
+/* ============================================================
+   INIT
+   ============================================================ */
+$$('.role-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    $$('.role-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    currentRole=btn.dataset.role;
+    renderTabs();
+    $$('.view').forEach(v=>v.classList.remove('active'));
+    $('#view-overview').classList.add('active');
+  });
+});
+$('#jurisdiction')?.addEventListener('change',()=>{ if($('#view-legal')?.classList.contains('active')) renderLegal(); });
+['#cap-search','#cap-type','#cap-stage','#cap-conf','#cap-cat'].forEach(sel=>{ const el=$(sel); if(el){ el.addEventListener('input',renderCapital); el.addEventListener('change',renderCapital);} });
+['#match-search','#match-type','#match-score-filter','#match-status'].forEach(sel=>{ const el=$(sel); if(el){ el.addEventListener('input',renderMatches); el.addEventListener('change',renderMatches);} });
+['#opp-search','#opp-country','#opp-stage','#opp-ready'].forEach(sel=>{ const el=$(sel); if(el){ el.addEventListener('input',renderOpps); el.addEventListener('change',renderOpps);} });
+$('#fx-slider')?.addEventListener('input',renderScenarios);
+$('#rate-slider')?.addEventListener('input',renderScenarios);
+$('#sector-chips')?.addEventListener('click',e=>{ if(e.target.classList.contains('chip')) e.target.classList.toggle('active'); });
+
+initCategoryControls();
+renderTabs();
+renderCapital();
+renderFlows();
+renderScenarios();
+renderProjectList();
+renderLegal();
+
+// Auto-show tutorial on first load (session)
+if(!sessionStorage.getItem('ci_tut_seen')){
+  setTimeout(()=>{ openTutorial(); sessionStorage.setItem('ci_tut_seen','1'); }, 600);
+}
+</script>
+</body>
+</html>

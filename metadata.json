@@ -1,0 +1,6 @@
+{
+  "name": "Capital Intelligence",
+  "description": "Infrastructure capital intelligence platform connecting African projects with global funding sources through legal authority checks, scenario stress-testing, and interactive corridor mapping.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
